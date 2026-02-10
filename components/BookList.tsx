@@ -82,8 +82,8 @@ export default function BookList({ books, onEdit, onDelete }: BookListProps) {
       </h2>
 
       {/* Index alphabétique */}
-      <div className="mb-8 bg-white rounded-2xl shadow-md border border-[#d8cfc4] p-6">
-        <div className="flex flex-wrap justify-center gap-2 mb-4">
+      <div className="mb-8 bg-white rounded-2xl shadow-md border border-[#d8cfc4] p-4 sm:p-6">
+        <div className="grid grid-cols-7 sm:grid-cols-13 gap-2 sm:gap-3 mb-4">
           {alphabet.map((letter) => (
             <button
               key={letter}
@@ -91,10 +91,10 @@ export default function BookList({ books, onEdit, onDelete }: BookListProps) {
                 setSelectedLetter(letter);
                 setSearchTerm('');
               }}
-              className={`w-10 h-10 rounded-lg font-bold text-lg transition-all duration-200 ${
+              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full font-bold text-base sm:text-lg transition-all duration-200 flex items-center justify-center ${
                 selectedLetter === letter
                   ? 'bg-[#6b4f3a] text-white shadow-md'
-                  : 'border-2 border-[#d8cfc4] text-[#7a6a5a] hover:bg-[#8b7355] hover:text-white hover:border-[#8b7355]'
+                  : 'border border-[#d8cfc4] text-[#6b4f3a] hover:bg-[#6b4f3a] hover:text-white hover:border-[#6b4f3a]'
               }`}
             >
               {letter}
