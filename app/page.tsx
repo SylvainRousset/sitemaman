@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
+// Forcer le rendu dynamique pour charger les données Firebase
+export const dynamic = 'force-dynamic';
 import { getBooks, deleteBook } from '@/lib/firestore';
 import type { Book } from '@/types/book';
 import AddBookModal from '@/components/AddBookModal';
