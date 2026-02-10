@@ -139,8 +139,8 @@ export default function BookList({ books, onEdit, onDelete }: BookListProps) {
               setSearchTerm(e.target.value);
               setSelectedLetter(null);
             }}
-            placeholder="Rechercher par initiale d'auteur..."
-            className="w-full pl-14 pr-5 py-4 text-lg bg-white border border-[#d8cfc4] rounded-full focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent placeholder:text-[#b0a79f] shadow-sm transition-shadow duration-200"
+            placeholder="Rechercher auteur..."
+            className="w-full pl-14 pr-5 py-3 sm:py-4 text-base sm:text-lg bg-white border border-[#d8cfc4] rounded-full focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent placeholder:text-[#b0a79f] shadow-sm transition-shadow duration-200"
           />
           {searchTerm && (
             <button
