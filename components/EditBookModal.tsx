@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { updateBook } from '@/lib/firestore';
+import { updateBook, getAuthors } from '@/lib/firestore';
 import type { Book } from '@/types/book';
 
 interface EditBookModalProps {
@@ -16,6 +16,22 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated }: 
   const [author, setAuthor] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingAuthors, setExistingAuthors] = useState<string[]>([]);
+
+  // Charger les auteurs existants quand le modal s'ouvre
+  useEffect(() => {
+    if (isOpen) {
+      const loadAuthors = async () => {
+        try {
+          const authors = await getAuthors();
+          setExistingAuthors(authors);
+        } catch (err) {
+          console.error('Erreur lors du chargement des auteurs:', err);
+        }
+      };
+      loadAuthors();
+    }
+  }, [isOpen]);
 
   // Initialiser le formulaire avec les données du livre
   useEffect(() => {
@@ -114,17 +130,24 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated }: 
 
             <div>
               <label htmlFor="edit-author" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                Auteur *
+                Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez)</span>}
               </label>
               <input
                 type="text"
                 id="edit-author"
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}
+                list="edit-authors-list"
                 required
+                autoComplete="off"
                 className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
                 placeholder="Ex: Antoine de Saint-Exupéry"
               />
+              <datalist id="edit-authors-list">
+                {existingAuthors.map((authorName) => (
+                  <option key={authorName} value={authorName} />
+                ))}
+              </datalist>
             </div>
 
             <div className="flex gap-4 pt-6">
