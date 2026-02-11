@@ -6,6 +6,8 @@ export interface Book {
   createdAt: Date;
   averageRating?: number;
   totalReviews?: number;
+  loanedTo?: string | null;
+  loanedAt?: Date | null;
 }
 
 export interface BookInput {

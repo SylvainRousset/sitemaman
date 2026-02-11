@@ -112,6 +112,7 @@ export default function Home() {
           books={books}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onRefresh={fetchBooks}
         />
       )}
     </div>

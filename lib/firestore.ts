@@ -72,6 +72,8 @@ export async function getBooks(): Promise<Book[]> {
         createdAt: data.createdAt.toDate(),
         averageRating: data.averageRating || 0,
         totalReviews: data.totalReviews || 0,
+        loanedTo: data.loanedTo || null,
+        loanedAt: data.loanedAt ? data.loanedAt.toDate() : null,
       });
     });
 
@@ -125,6 +127,8 @@ export async function getBookById(bookId: string): Promise<Book | null> {
         createdAt: data.createdAt.toDate(),
         averageRating: data.averageRating || 0,
         totalReviews: data.totalReviews || 0,
+        loanedTo: data.loanedTo || null,
+        loanedAt: data.loanedAt ? data.loanedAt.toDate() : null,
       };
     }
 
@@ -300,5 +304,37 @@ export async function deleteReview(bookId: string, reviewId: string): Promise<vo
   } catch (error) {
     console.error('Erreur lors de la suppression de l\'avis:', error);
     throw new Error('Impossible de supprimer l\'avis');
+  }
+}
+
+/**
+ * Prêter un livre
+ */
+export async function loanBook(bookId: string, loanedTo: string): Promise<void> {
+  try {
+    const bookRef = doc(db, 'books', bookId);
+    await updateDoc(bookRef, {
+      loanedTo: loanedTo.trim(),
+      loanedAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Erreur lors du prêt du livre:', error);
+    throw new Error('Impossible de prêter le livre');
+  }
+}
+
+/**
+ * Marquer un livre comme rendu
+ */
+export async function returnBook(bookId: string): Promise<void> {
+  try {
+    const bookRef = doc(db, 'books', bookId);
+    await updateDoc(bookRef, {
+      loanedTo: null,
+      loanedAt: null,
+    });
+  } catch (error) {
+    console.error('Erreur lors du retour du livre:', error);
+    throw new Error('Impossible de marquer le livre comme rendu');
   }
 }

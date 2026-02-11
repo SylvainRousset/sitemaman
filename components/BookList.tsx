@@ -4,11 +4,14 @@ import { useState, useEffect } from 'react';
 import type { Book } from '@/types/book';
 import Link from 'next/link';
 import { getFavoriteAuthors, addFavoriteAuthor, removeFavoriteAuthor } from '@/lib/firestore-favorites';
+import { loanBook, returnBook } from '@/lib/firestore';
+import LoanModal from './LoanModal';
 
 interface BookListProps {
   books: Book[];
   onEdit: (book: Book) => void;
   onDelete: (bookId: string) => void;
+  onRefresh?: () => void;
 }
 
 // Fonction pour enlever les accents
@@ -16,11 +19,13 @@ function removeAccents(str: string): string {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-export default function BookList({ books, onEdit, onDelete }: BookListProps) {
+export default function BookList({ books, onEdit, onDelete, onRefresh }: BookListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [favoriteAuthors, setFavoriteAuthors] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
+  const [selectedBookForLoan, setSelectedBookForLoan] = useState<Book | null>(null);
 
   // Alphabet A-Z
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -111,6 +116,23 @@ export default function BookList({ books, onEdit, onDelete }: BookListProps) {
     e.preventDefault();
     e.stopPropagation();
     onDelete(bookId);
+  };
+
+  const handleOpenLoanModal = (e: React.MouseEvent, book: Book) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedBookForLoan(book);
+    setIsLoanModalOpen(true);
+  };
+
+  const handleLoan = async (bookId: string, loanedTo: string) => {
+    await loanBook(bookId, loanedTo);
+    if (onRefresh) onRefresh();
+  };
+
+  const handleReturn = async (bookId: string) => {
+    await returnBook(bookId);
+    if (onRefresh) onRefresh();
   };
 
   return (
@@ -290,6 +312,19 @@ export default function BookList({ books, onEdit, onDelete }: BookListProps) {
                           {/* Boutons d'action */}
                           <div className="absolute top-4 right-4 flex gap-2">
                             <button
+                              onClick={(e) => handleOpenLoanModal(e, book)}
+                              className={`p-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                                book.loanedTo
+                                  ? 'bg-[#d4a373] text-white hover:bg-[#c4936b]'
+                                  : 'bg-[#e8e0d5] text-[#7a6a5a] hover:bg-[#d8cfc4]'
+                              }`}
+                              title={book.loanedTo ? `Prêté à ${book.loanedTo}` : 'Prêter ce livre'}
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                              </svg>
+                            </button>
+                            <button
                               onClick={(e) => handleEdit(e, book)}
                               className="p-2 bg-[#6b4f3a] text-white rounded-lg hover:bg-[#5a3f2e] transition-all duration-200 shadow-sm hover:shadow-md"
                               title="Modifier"
@@ -314,6 +349,18 @@ export default function BookList({ books, onEdit, onDelete }: BookListProps) {
                             <h4 className="font-serif text-xl font-semibold text-[#3e2c1c] mb-3">
                               {book.title}
                             </h4>
+
+                            {/* Badge prêté */}
+                            {book.loanedTo && (
+                              <div className="mb-3 inline-block">
+                                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#fff9f0] border border-[#d4a373] text-[#8b6f47] text-sm font-medium">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                  </svg>
+                                  Prêté à {book.loanedTo}
+                                </span>
+                              </div>
+                            )}
 
                             {/* Infos supplémentaires */}
                             <div className="flex items-center gap-4 text-base text-[#7a6a5a]">
@@ -343,6 +390,18 @@ export default function BookList({ books, onEdit, onDelete }: BookListProps) {
           </div>
         </>
       )}
+
+      {/* Modal de prêt */}
+      <LoanModal
+        isOpen={isLoanModalOpen}
+        book={selectedBookForLoan}
+        onClose={() => {
+          setIsLoanModalOpen(false);
+          setSelectedBookForLoan(null);
+        }}
+        onLoan={handleLoan}
+        onReturn={handleReturn}
+      />
     </div>
   );
 }
