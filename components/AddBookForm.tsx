@@ -48,24 +48,25 @@ export default function AddBookForm({ onBookAdded }: AddBookFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    // Validation: au moins une note OU un commentaire pour la review
-    if (!formData.review.rating && !formData.review.comment?.trim()) {
-      setError('Veuillez ajouter une note et/ou un commentaire');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-      // Nettoyer les données de la review
-      const reviewData: ReviewInput = {
-        reviewerName: formData.review.reviewerName.trim(),
-        rating: formData.review.rating || undefined,
-        comment: formData.review.comment?.trim() || undefined,
-      };
+      // Vérifier s'il y a une review à ajouter
+      const hasReviewData = formData.review.rating || formData.review.comment?.trim();
 
-      await addBook(formData.book, reviewData);
+      if (hasReviewData) {
+        // Nettoyer les données de la review
+        const reviewData: ReviewInput = {
+          reviewerName: formData.review.reviewerName.trim(),
+          rating: formData.review.rating || undefined,
+          comment: formData.review.comment?.trim() || undefined,
+        };
+
+        await addBook(formData.book, reviewData);
+      } else {
+        // Ajouter le livre sans review
+        await addBook(formData.book);
+      }
 
       // Réinitialiser le formulaire
       setFormData({
@@ -184,13 +185,15 @@ export default function AddBookForm({ onBookAdded }: AddBookFormProps) {
           </div>
         </div>
 
-        {/* Premier avis */}
+        {/* Premier avis (optionnel) */}
         <div className="space-y-4 pt-4 border-t border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Votre premier avis</h3>
+          <h3 className="text-lg font-medium text-gray-900">
+            Votre premier avis <span className="text-sm font-normal text-gray-500">(optionnel)</span>
+          </h3>
 
           <div>
             <label htmlFor="reviewerName" className="block text-sm font-medium text-gray-700 mb-1">
-              Votre nom *
+              Votre nom
             </label>
             <input
               type="text"
@@ -200,7 +203,6 @@ export default function AddBookForm({ onBookAdded }: AddBookFormProps) {
                 ...formData,
                 review: { ...formData.review, reviewerName: e.target.value }
               })}
-              required
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Votre prénom"
             />
@@ -208,7 +210,7 @@ export default function AddBookForm({ onBookAdded }: AddBookFormProps) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Note (optionnel)
+              Note
             </label>
             <StarRating
               value={formData.review.rating}
@@ -219,7 +221,7 @@ export default function AddBookForm({ onBookAdded }: AddBookFormProps) {
 
           <div>
             <label htmlFor="comment" className="block text-sm font-medium text-gray-700 mb-1">
-              Commentaire (optionnel)
+              Commentaire
             </label>
             <textarea
               id="comment"

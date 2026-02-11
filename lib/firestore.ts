@@ -18,28 +18,33 @@ import type { Review, ReviewInput } from '@/types/review';
 const booksCollection = collection(db, 'books');
 
 /**
- * Ajouter un nouveau livre avec une première review
+ * Ajouter un nouveau livre avec une première review optionnelle
  */
 export async function addBook(
   bookData: BookInput,
-  firstReview: ReviewInput
+  firstReview?: ReviewInput
 ): Promise<string> {
   try {
-    // 1. Créer le livre avec averageRating initial
+    // Vérifier si la review contient des données
+    const hasReview = firstReview && (firstReview.rating || firstReview.comment?.trim());
+
+    // 1. Créer le livre
     const bookRef = await addDoc(booksCollection, {
       ...bookData,
       createdAt: Timestamp.now(),
-      averageRating: firstReview.rating || 0,
-      totalReviews: 1,
+      averageRating: hasReview && firstReview.rating ? firstReview.rating : 0,
+      totalReviews: hasReview ? 1 : 0,
     });
 
-    // 2. Ajouter la première review
-    const reviewsRef = collection(db, 'books', bookRef.id, 'reviews');
-    await addDoc(reviewsRef, {
-      ...firstReview,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
+    // 2. Ajouter la première review si elle existe
+    if (hasReview) {
+      const reviewsRef = collection(db, 'books', bookRef.id, 'reviews');
+      await addDoc(reviewsRef, {
+        ...firstReview,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    }
 
     return bookRef.id;
   } catch (error) {

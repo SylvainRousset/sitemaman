@@ -83,32 +83,34 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookMo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    // Validation: au moins une note OU un commentaire pour la review
-    if (!formData.review.rating && !formData.review.comment?.trim()) {
-      setError('Veuillez ajouter une note et/ou un commentaire');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-      // Nettoyer les données de la review - ne pas inclure les champs vides
-      const reviewData: ReviewInput = {
-        reviewerName: formData.review.reviewerName.trim(),
-      };
+      // Vérifier s'il y a une review à ajouter
+      const hasReviewData = formData.review.rating || formData.review.comment?.trim();
 
-      // Ajouter rating seulement s'il existe
-      if (formData.review.rating) {
-        reviewData.rating = formData.review.rating;
+      if (hasReviewData) {
+        // Nettoyer les données de la review
+        const reviewData: ReviewInput = {
+          reviewerName: formData.review.reviewerName.trim(),
+        };
+
+        // Ajouter rating seulement s'il existe
+        if (formData.review.rating) {
+          reviewData.rating = formData.review.rating;
+        }
+
+        // Ajouter comment seulement s'il existe et n'est pas vide
+        if (formData.review.comment?.trim()) {
+          reviewData.comment = formData.review.comment.trim();
+        }
+
+        await addBook(formData.book, reviewData);
+      } else {
+        // Ajouter le livre sans review
+        await addBook(formData.book);
       }
 
-      // Ajouter comment seulement s'il existe et n'est pas vide
-      if (formData.review.comment?.trim()) {
-        reviewData.comment = formData.review.comment.trim();
-      }
-
-      await addBook(formData.book, reviewData);
       onBookAdded();
       onClose();
     } catch (err) {
@@ -245,13 +247,32 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookMo
               </div>
             </div>
 
-            {/* Premier avis */}
+            {/* Premier avis (optionnel) */}
             <div className="space-y-5 pt-6 border-t-2 border-[#d8cfc4]">
-              <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">Votre premier avis</h3>
+              <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
+                Votre premier avis <span className="text-sm font-normal text-[#b0a79f]">(optionnel)</span>
+              </h3>
+
+              <div>
+                <label htmlFor="reviewerName" className="block text-base font-semibold text-[#7a6a5a] mb-2">
+                  Votre nom
+                </label>
+                <input
+                  type="text"
+                  id="reviewerName"
+                  value={formData.review.reviewerName}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    review: { ...formData.review, reviewerName: e.target.value }
+                  })}
+                  className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
+                  placeholder="Votre prénom"
+                />
+              </div>
 
               <div>
                 <label className="block text-base font-semibold text-[#7a6a5a] mb-3">
-                  Note (optionnel)
+                  Note
                 </label>
                 <StarRating
                   value={formData.review.rating}
@@ -262,7 +283,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookMo
 
               <div>
                 <label htmlFor="comment" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                  Commentaire (optionnel)
+                  Commentaire
                 </label>
                 <textarea
                   id="comment"
