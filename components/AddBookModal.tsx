@@ -5,6 +5,7 @@ import { addBook, getAuthors } from '@/lib/firestore';
 import type { BookInput } from '@/types/book';
 import type { ReviewInput } from '@/types/review';
 import StarRating from './StarRating';
+import AuthorAutocomplete from './AuthorAutocomplete';
 
 interface AddBookModalProps {
   isOpen: boolean;
@@ -208,26 +209,19 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookMo
               </div>
 
               <div>
-                <label htmlFor="author" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                  Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez un nouveau)</span>}
-                </label>
-                <input
-                  type="text"
-                  id="author"
-                  name="author"
+                <AuthorAutocomplete
                   value={formData.book.author}
-                  onChange={handleBookChange}
-                  list="authors-list"
+                  onChange={(value) => handleBookChange({ target: { name: 'author', value } } as any)}
+                  authors={existingAuthors}
                   required
-                  autoComplete="off"
+                  label={
+                    <>
+                      Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez un nouveau)</span>}
+                    </>
+                  }
+                  labelClassName="block text-base font-semibold text-[#7a6a5a] mb-2"
                   className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
-                  placeholder="Ex: Antoine de Saint-Exupéry"
                 />
-                <datalist id="authors-list">
-                  {existingAuthors.map((author) => (
-                    <option key={author} value={author} />
-                  ))}
-                </datalist>
               </div>
 
               <div>

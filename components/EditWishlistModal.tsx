@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { updateWishlist, getWishlistAuthors } from '@/lib/firestore-wishlist';
 import { getAuthors } from '@/lib/firestore';
 import type { Wishlist } from '@/types/wishlist';
+import AuthorAutocomplete from './AuthorAutocomplete';
 
 interface EditWishlistModalProps {
   isOpen: boolean;
@@ -135,25 +136,19 @@ export default function EditWishlistModal({ isOpen, item, onClose, onItemUpdated
             </div>
 
             <div>
-              <label htmlFor="edit-author" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez)</span>}
-              </label>
-              <input
-                type="text"
-                id="edit-author"
+              <AuthorAutocomplete
                 value={author}
-                onChange={(e) => setAuthor(e.target.value)}
-                list="edit-wishlist-authors-list"
+                onChange={setAuthor}
+                authors={existingAuthors}
                 required
-                autoComplete="off"
+                label={
+                  <>
+                    Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez)</span>}
+                  </>
+                }
+                labelClassName="block text-base font-semibold text-[#7a6a5a] mb-2"
                 className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
-                placeholder="Ex: Antoine de Saint-Exupéry"
               />
-              <datalist id="edit-wishlist-authors-list">
-                {existingAuthors.map((authorName) => (
-                  <option key={authorName} value={authorName} />
-                ))}
-              </datalist>
             </div>
 
             <div className="flex gap-4 pt-6">

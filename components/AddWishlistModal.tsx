@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { addWishlist, getWishlistAuthors } from '@/lib/firestore-wishlist';
 import { getAuthors } from '@/lib/firestore';
 import type { WishlistInput } from '@/types/wishlist';
+import AuthorAutocomplete from './AuthorAutocomplete';
 
 interface AddWishlistModalProps {
   isOpen: boolean;
@@ -149,26 +150,19 @@ export default function AddWishlistModal({ isOpen, onClose, onItemAdded }: AddWi
             </div>
 
             <div>
-              <label htmlFor="author" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez un nouveau)</span>}
-              </label>
-              <input
-                type="text"
-                id="author"
-                name="author"
+              <AuthorAutocomplete
                 value={formData.author}
-                onChange={handleChange}
-                list="wishlist-authors-list"
+                onChange={(value) => handleChange({ target: { name: 'author', value } } as any)}
+                authors={existingAuthors}
                 required
-                autoComplete="off"
+                label={
+                  <>
+                    Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez un nouveau)</span>}
+                  </>
+                }
+                labelClassName="block text-base font-semibold text-[#7a6a5a] mb-2"
                 className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
-                placeholder="Ex: Antoine de Saint-Exupéry"
               />
-              <datalist id="wishlist-authors-list">
-                {existingAuthors.map((author) => (
-                  <option key={author} value={author} />
-                ))}
-              </datalist>
             </div>
 
             <div>

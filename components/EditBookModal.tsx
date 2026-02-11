@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { updateBook, getAuthors } from '@/lib/firestore';
 import type { Book } from '@/types/book';
+import AuthorAutocomplete from './AuthorAutocomplete';
 
 interface EditBookModalProps {
   isOpen: boolean;
@@ -129,25 +130,19 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated }: 
             </div>
 
             <div>
-              <label htmlFor="edit-author" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez)</span>}
-              </label>
-              <input
-                type="text"
-                id="edit-author"
+              <AuthorAutocomplete
                 value={author}
-                onChange={(e) => setAuthor(e.target.value)}
-                list="edit-authors-list"
+                onChange={setAuthor}
+                authors={existingAuthors}
                 required
-                autoComplete="off"
+                label={
+                  <>
+                    Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez)</span>}
+                  </>
+                }
+                labelClassName="block text-base font-semibold text-[#7a6a5a] mb-2"
                 className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
-                placeholder="Ex: Antoine de Saint-Exupéry"
               />
-              <datalist id="edit-authors-list">
-                {existingAuthors.map((authorName) => (
-                  <option key={authorName} value={authorName} />
-                ))}
-              </datalist>
             </div>
 
             <div className="flex gap-4 pt-6">
