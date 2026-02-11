@@ -310,42 +310,42 @@ export default function BookList({ books, onEdit, onDelete, onRefresh }: BookLis
                       <Link key={book.id} href={`/books/${book.id}`}>
                         <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all duration-200 cursor-pointer border-l-4 border-[#8b7355] relative group">
                           {/* Boutons d'action */}
-                          <div className="absolute top-4 right-4 flex gap-2">
+                          <div className="absolute top-4 right-4 flex gap-1 sm:gap-2">
                             <button
                               onClick={(e) => handleOpenLoanModal(e, book)}
-                              className={`p-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
+                              className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
                                 book.loanedTo
                                   ? 'bg-[#d4a373] text-white hover:bg-[#c4936b]'
                                   : 'bg-[#e8e0d5] text-[#7a6a5a] hover:bg-[#d8cfc4]'
                               }`}
                               title={book.loanedTo ? `Prêté à ${book.loanedTo}` : 'Prêter ce livre'}
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                               </svg>
                             </button>
                             <button
                               onClick={(e) => handleEdit(e, book)}
-                              className="p-2 bg-[#6b4f3a] text-white rounded-lg hover:bg-[#5a3f2e] transition-all duration-200 shadow-sm hover:shadow-md"
+                              className="p-1.5 sm:p-2 bg-[#6b4f3a] text-white rounded-lg hover:bg-[#5a3f2e] transition-all duration-200 shadow-sm hover:shadow-md"
                               title="Modifier"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             </button>
                             <button
                               onClick={(e) => handleDelete(e, book.id)}
-                              className="p-2 bg-[#c75450] text-white rounded-lg hover:bg-[#b04844] transition-all duration-200 shadow-sm hover:shadow-md"
+                              className="p-1.5 sm:p-2 bg-[#c75450] text-white rounded-lg hover:bg-[#b04844] transition-all duration-200 shadow-sm hover:shadow-md"
                               title="Supprimer"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
                             </button>
                           </div>
 
                           {/* Titre du livre */}
-                          <div className="pr-24">
+                          <div className="pr-32 sm:pr-24">
                             <h4 className="font-serif text-xl font-semibold text-[#3e2c1c] mb-3">
                               {book.title}
                             </h4>
