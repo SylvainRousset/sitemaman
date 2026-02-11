@@ -133,7 +133,10 @@ export async function getWishlistAuthors(): Promise<string[]> {
       }
     });
 
-    return Array.from(authorsSet).sort();
+    // Trier en ignorant les accents et la casse
+    return Array.from(authorsSet).sort((a, b) =>
+      a.localeCompare(b, 'fr', { sensitivity: 'base' })
+    );
   } catch (error) {
     console.error('Erreur lors de la récupération des auteurs:', error);
     throw new Error('Impossible de récupérer les auteurs');

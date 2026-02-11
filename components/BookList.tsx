@@ -60,8 +60,10 @@ export default function BookList({ books, onEdit, onDelete }: BookListProps) {
     return acc;
   }, {} as Record<string, Book[]>);
 
-  // Trier les auteurs alphabétiquement
-  const sortedAuthors = Object.keys(booksByAuthor).sort();
+  // Trier les auteurs alphabétiquement (en ignorant les accents et la casse)
+  const sortedAuthors = Object.keys(booksByAuthor).sort((a, b) =>
+    a.localeCompare(b, 'fr', { sensitivity: 'base' })
+  );
 
   const handleEdit = (e: React.MouseEvent, book: Book) => {
     e.preventDefault();

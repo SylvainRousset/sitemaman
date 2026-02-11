@@ -59,8 +59,10 @@ export default function WishlistList({ items, onEdit, onDelete }: WishlistListPr
     return acc;
   }, {} as Record<string, Wishlist[]>);
 
-  // Trier les auteurs alphabétiquement
-  const sortedAuthors = Object.keys(itemsByAuthor).sort();
+  // Trier les auteurs alphabétiquement (en ignorant les accents et la casse)
+  const sortedAuthors = Object.keys(itemsByAuthor).sort((a, b) =>
+    a.localeCompare(b, 'fr', { sensitivity: 'base' })
+  );
 
   const handleEdit = (e: React.MouseEvent, item: Wishlist) => {
     e.preventDefault();
