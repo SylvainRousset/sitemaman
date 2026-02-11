@@ -9,7 +9,7 @@ interface AuthorAutocompleteProps {
   placeholder?: string;
   required?: boolean;
   className?: string;
-  label?: string;
+  label?: React.ReactNode;
   labelClassName?: string;
 }
 
