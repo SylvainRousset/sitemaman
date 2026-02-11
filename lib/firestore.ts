@@ -78,6 +78,28 @@ export async function getBooks(): Promise<Book[]> {
 }
 
 /**
+ * Récupérer la liste unique des auteurs (triés alphabétiquement)
+ */
+export async function getAuthors(): Promise<string[]> {
+  try {
+    const querySnapshot = await getDocs(booksCollection);
+    const authorsSet = new Set<string>();
+
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.author) {
+        authorsSet.add(data.author);
+      }
+    });
+
+    return Array.from(authorsSet).sort();
+  } catch (error) {
+    console.error('Erreur lors de la récupération des auteurs:', error);
+    throw new Error('Impossible de récupérer les auteurs');
+  }
+}
+
+/**
  * Récupérer un livre par son ID
  */
 export async function getBookById(bookId: string): Promise<Book | null> {

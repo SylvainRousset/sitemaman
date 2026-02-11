@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { addBook } from '@/lib/firestore';
+import { addBook, getAuthors } from '@/lib/firestore';
 import type { BookInput } from '@/types/book';
 import type { ReviewInput } from '@/types/review';
 import StarRating from './StarRating';
@@ -32,6 +32,22 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookMo
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingAuthors, setExistingAuthors] = useState<string[]>([]);
+
+  // Charger les auteurs existants quand le modal s'ouvre
+  useEffect(() => {
+    if (isOpen) {
+      const loadAuthors = async () => {
+        try {
+          const authors = await getAuthors();
+          setExistingAuthors(authors);
+        } catch (err) {
+          console.error('Erreur lors du chargement des auteurs:', err);
+        }
+      };
+      loadAuthors();
+    }
+  }, [isOpen]);
 
   // Réinitialiser le formulaire quand le modal se ferme
   useEffect(() => {
@@ -191,7 +207,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookMo
 
               <div>
                 <label htmlFor="author" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                  Auteur *
+                  Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez un nouveau)</span>}
                 </label>
                 <input
                   type="text"
@@ -199,10 +215,17 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookMo
                   name="author"
                   value={formData.book.author}
                   onChange={handleBookChange}
+                  list="authors-list"
                   required
+                  autoComplete="off"
                   className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
                   placeholder="Ex: Antoine de Saint-Exupéry"
                 />
+                <datalist id="authors-list">
+                  {existingAuthors.map((author) => (
+                    <option key={author} value={author} />
+                  ))}
+                </datalist>
               </div>
 
               <div>

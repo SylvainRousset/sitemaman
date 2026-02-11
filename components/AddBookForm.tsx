@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { addBook } from '@/lib/firestore';
+import { useState, useEffect } from 'react';
+import { addBook, getAuthors } from '@/lib/firestore';
 import type { BookInput } from '@/types/book';
 import type { ReviewInput } from '@/types/review';
 import StarRating from './StarRating';
@@ -30,6 +30,20 @@ export default function AddBookForm({ onBookAdded }: AddBookFormProps) {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingAuthors, setExistingAuthors] = useState<string[]>([]);
+
+  // Charger les auteurs existants au montage du composant
+  useEffect(() => {
+    const loadAuthors = async () => {
+      try {
+        const authors = await getAuthors();
+        setExistingAuthors(authors);
+      } catch (err) {
+        console.error('Erreur lors du chargement des auteurs:', err);
+      }
+    };
+    loadAuthors();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,7 +146,7 @@ export default function AddBookForm({ onBookAdded }: AddBookFormProps) {
 
           <div>
             <label htmlFor="author" className="block text-sm font-medium text-gray-700 mb-1">
-              Auteur *
+              Auteur * {existingAuthors.length > 0 && <span className="text-xs font-normal text-gray-500">(Sélectionnez ou tapez un nouveau)</span>}
             </label>
             <input
               type="text"
@@ -140,10 +154,17 @@ export default function AddBookForm({ onBookAdded }: AddBookFormProps) {
               name="author"
               value={formData.book.author}
               onChange={handleBookChange}
+              list="authors-list"
               required
+              autoComplete="off"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Ex: Antoine de Saint-Exupéry"
             />
+            <datalist id="authors-list">
+              {existingAuthors.map((author) => (
+                <option key={author} value={author} />
+              ))}
+            </datalist>
           </div>
 
           <div>
