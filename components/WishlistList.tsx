@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Wishlist } from '@/types/wishlist';
+import { getFavoriteAuthors, addFavoriteAuthor, removeFavoriteAuthor } from '@/lib/firestore-favorites';
 
 interface WishlistListProps {
   items: Wishlist[];
@@ -17,9 +18,39 @@ function removeAccents(str: string): string {
 export default function WishlistList({ items, onEdit, onDelete }: WishlistListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
+  const [favoriteAuthors, setFavoriteAuthors] = useState<string[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // Alphabet A-Z
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+  // Charger les auteurs favoris au montage
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const favorites = await getFavoriteAuthors();
+        setFavoriteAuthors(favorites);
+      } catch (err) {
+        console.error('Erreur lors du chargement des favoris:', err);
+      }
+    };
+    loadFavorites();
+  }, []);
+
+  // Toggle favori
+  const toggleFavorite = async (authorName: string) => {
+    try {
+      if (favoriteAuthors.includes(authorName)) {
+        await removeFavoriteAuthor(authorName);
+        setFavoriteAuthors(favoriteAuthors.filter(name => name !== authorName));
+      } else {
+        await addFavoriteAuthor(authorName);
+        setFavoriteAuthors([...favoriteAuthors, authorName]);
+      }
+    } catch (err) {
+      console.error('Erreur lors du toggle favori:', err);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -60,9 +91,14 @@ export default function WishlistList({ items, onEdit, onDelete }: WishlistListPr
   }, {} as Record<string, Wishlist[]>);
 
   // Trier les auteurs alphabétiquement (en ignorant les accents et la casse)
-  const sortedAuthors = Object.keys(itemsByAuthor).sort((a, b) =>
+  let sortedAuthors = Object.keys(itemsByAuthor).sort((a, b) =>
     a.localeCompare(b, 'fr', { sensitivity: 'base' })
   );
+
+  // Filtrer par favoris si activé
+  if (showFavoritesOnly) {
+    sortedAuthors = sortedAuthors.filter(author => favoriteAuthors.includes(author));
+  }
 
   const handleEdit = (e: React.MouseEvent, item: Wishlist) => {
     e.preventDefault();
@@ -81,6 +117,23 @@ export default function WishlistList({ items, onEdit, onDelete }: WishlistListPr
       <h2 className="font-serif text-4xl font-bold mb-8 text-[#3e2c1c] pb-4 border-b-2 border-[#d8cfc4]">
         Livres souhaités ({items.length})
       </h2>
+
+      {/* Bouton Favoris uniquement */}
+      {favoriteAuthors.length > 0 && (
+        <div className="mb-6 flex justify-center">
+          <button
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            className={`px-6 py-3 rounded-lg font-semibold text-base transition-all duration-200 flex items-center gap-2 ${
+              showFavoritesOnly
+                ? 'bg-[#6b4f3a] text-white shadow-md'
+                : 'border-2 border-[#d8cfc4] text-[#7a6a5a] hover:border-[#6b4f3a] hover:text-[#6b4f3a]'
+            }`}
+          >
+            <span className={showFavoritesOnly ? 'text-amber-300' : ''}>⭐</span>
+            Favoris uniquement
+          </button>
+        </div>
+      )}
 
       {/* Index alphabétique */}
       <div className="mb-8 bg-white rounded-2xl shadow-md border border-[#d8cfc4] p-4 sm:p-6">
@@ -201,13 +254,25 @@ export default function WishlistList({ items, onEdit, onDelete }: WishlistListPr
           </div>
 
           <div className="space-y-12">
-            {sortedAuthors.map((author) => (
-              <div key={author}>
-                {/* Nom de l'auteur */}
-                <h3 className="font-serif text-2xl font-bold text-[#3e2c1c] uppercase border-b-2 border-[#d8cfc4] pb-3 mb-6 flex items-center gap-3">
-                  <span className="text-[#8b7355]">✦</span>
-                  {author}
-                </h3>
+            {sortedAuthors.map((author) => {
+              const isFavorite = favoriteAuthors.includes(author);
+
+              return (
+                <div key={author}>
+                  {/* Nom de l'auteur */}
+                  <h3 className="font-serif text-2xl font-bold text-[#3e2c1c] uppercase border-b-2 border-[#d8cfc4] pb-3 mb-6 flex items-center gap-3">
+                    <span className="text-[#8b7355]">✦</span>
+                    {author}
+                    <button
+                      onClick={() => toggleFavorite(author)}
+                      className={`ml-2 transition-all duration-200 hover:scale-110 ${
+                        isFavorite ? 'text-amber-500' : 'text-[#b0a79f] hover:text-amber-400'
+                      }`}
+                      title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                    >
+                      {isFavorite ? '⭐' : '☆'}
+                    </button>
+                  </h3>
 
                 {/* Liste des livres de cet auteur */}
                 <div className="space-y-4">
@@ -260,7 +325,8 @@ export default function WishlistList({ items, onEdit, onDelete }: WishlistListPr
                   })}
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </>
       )}
