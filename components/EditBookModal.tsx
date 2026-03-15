@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { updateBook, getAuthors } from '@/lib/firestore';
+import { updateBook as updateBookDefault, getAuthors as getAuthorsDefault } from '@/lib/firestore';
 import type { Book } from '@/types/book';
 import AuthorAutocomplete from './AuthorAutocomplete';
 
@@ -10,9 +10,13 @@ interface EditBookModalProps {
   book: Book | null;
   onClose: () => void;
   onBookUpdated: () => void;
+  updateBookFn?: (bookId: string, title: string, author: string) => Promise<void>;
+  getAuthorsFn?: () => Promise<string[]>;
 }
 
-export default function EditBookModal({ isOpen, book, onClose, onBookUpdated }: EditBookModalProps) {
+export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, updateBookFn, getAuthorsFn }: EditBookModalProps) {
+  const updateBook = updateBookFn ?? updateBookDefault;
+  const getAuthors = getAuthorsFn ?? getAuthorsDefault;
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);

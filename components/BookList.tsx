@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import type { Book } from '@/types/book';
 import Link from 'next/link';
 import { getFavoriteAuthors, addFavoriteAuthor, removeFavoriteAuthor } from '@/lib/firestore-favorites';
-import { loanBook, returnBook } from '@/lib/firestore';
+import { loanBook as loanBookDefault, returnBook as returnBookDefault } from '@/lib/firestore';
 import LoanModal from './LoanModal';
 
 interface BookListProps {
@@ -12,6 +12,10 @@ interface BookListProps {
   onEdit: (book: Book) => void;
   onDelete: (bookId: string) => void;
   onRefresh?: () => void;
+  title?: string;
+  basePath?: string;
+  loanBookFn?: (bookId: string, loanedTo: string) => Promise<void>;
+  returnBookFn?: (bookId: string) => Promise<void>;
 }
 
 // Fonction pour enlever les accents
@@ -19,7 +23,10 @@ function removeAccents(str: string): string {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-export default function BookList({ books, onEdit, onDelete, onRefresh }: BookListProps) {
+export default function BookList({ books, onEdit, onDelete, onRefresh, title, basePath, loanBookFn, returnBookFn }: BookListProps) {
+  const loanBook = loanBookFn ?? loanBookDefault;
+  const returnBook = returnBookFn ?? returnBookDefault;
+  const bookBasePath = basePath ?? '/books';
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [favoriteAuthors, setFavoriteAuthors] = useState<string[]>([]);
@@ -138,7 +145,7 @@ export default function BookList({ books, onEdit, onDelete, onRefresh }: BookLis
   return (
     <div>
       <h2 className="font-serif text-4xl font-bold mb-8 text-[#3e2c1c] pb-4 border-b-2 border-[#d8cfc4]">
-        Nos livres ({books.length})
+        {title ?? 'Nos livres'} ({books.length})
       </h2>
 
       {/* Bouton Favoris uniquement */}
@@ -307,7 +314,7 @@ export default function BookList({ books, onEdit, onDelete, onRefresh }: BookLis
                     });
 
                     return (
-                      <Link key={book.id} href={`/books/${book.id}`}>
+                      <Link key={book.id} href={`${bookBasePath}/${book.id}`}>
                         <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all duration-200 cursor-pointer border-l-4 border-[#8b7355] relative group">
                           {/* Boutons d'action */}
                           <div className="absolute top-4 right-4 flex gap-1 sm:gap-2">

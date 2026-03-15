@@ -18,7 +18,16 @@
       "Bash(tasklist:*)",
       "Bash(npm run import-books:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nRedesign complet en style bibliothèque vintage\n\n- Nouvelle palette de couleurs chaleureuse \\(beige/marron\\)\n- Police serif élégante \\(Libre Baskerville\\) pour les titres\n- Interface accessible pour personnes âgées \\(textes plus grands, boutons plus larges\\)\n- Index alphabétique cliquable pour navigation rapide\n- Recherche par initiale d''auteur\n- Cards avec ombres douces et bordures colorées\n- Transitions et hover effects subtils\n- Ambiance familiale et chaleureuse\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(vercel:*)",
+      "Bash(git commit:*)",
+      "Bash(npm run build:*)",
+      "Bash(mkdir:*)",
+      "Bash(cd:*)"
     ]
   }
 }

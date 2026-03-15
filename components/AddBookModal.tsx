@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { addBook, getAuthors } from '@/lib/firestore';
+import { addBook as addBookDefault, getAuthors as getAuthorsDefault } from '@/lib/firestore';
 import type { BookInput } from '@/types/book';
 import type { ReviewInput } from '@/types/review';
 import StarRating from './StarRating';
@@ -11,6 +11,8 @@ interface AddBookModalProps {
   isOpen: boolean;
   onClose: () => void;
   onBookAdded: () => void;
+  addBookFn?: (bookData: BookInput, firstReview?: ReviewInput) => Promise<string>;
+  getAuthorsFn?: () => Promise<string[]>;
 }
 
 interface FormData {
@@ -18,7 +20,9 @@ interface FormData {
   review: ReviewInput;
 }
 
-export default function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookModalProps) {
+export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, getAuthorsFn }: AddBookModalProps) {
+  const addBook = addBookFn ?? addBookDefault;
+  const getAuthors = getAuthorsFn ?? getAuthorsDefault;
   const [formData, setFormData] = useState<FormData>({
     book: {
       title: '',
