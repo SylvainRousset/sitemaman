@@ -150,8 +150,21 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
 
           <form onSubmit={handleSubmit} className="space-y-8">
 
+            {/* Auteur */}
+            <div>
+              <AuthorAutocomplete
+                value={author}
+                onChange={setAuthor}
+                authors={existingAuthors}
+                required
+                label={<>Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez un nouveau)</span>}</>}
+                labelClassName="block text-base font-semibold text-[#7a6a5a] mb-2"
+                className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
+              />
+            </div>
+
             {/* Titres */}
-            <div className="space-y-4">
+            <div className="space-y-4 pt-2 border-t border-[#d8cfc4]">
               <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
                 Titre{titles.length > 1 ? 's' : ''}
               </h3>
@@ -201,24 +214,8 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
               </button>
             </div>
 
-            {/* Auteur, Genre, Ajouté par */}
+            {/* Genre et Ajouté par */}
             <div className="space-y-5 pt-2 border-t border-[#d8cfc4]">
-              <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
-                Informations communes
-              </h3>
-
-              <div>
-                <AuthorAutocomplete
-                  value={author}
-                  onChange={setAuthor}
-                  authors={existingAuthors}
-                  required
-                  label={<>Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez un nouveau)</span>}</>}
-                  labelClassName="block text-base font-semibold text-[#7a6a5a] mb-2"
-                  className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
-                />
-              </div>
-
               <div>
                 <label className="block text-base font-semibold text-[#7a6a5a] mb-2">Genre</label>
                 <select
