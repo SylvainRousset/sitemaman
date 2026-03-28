@@ -2,6 +2,7 @@ export interface Book {
   id: string;
   title: string;
   author: string;
+  genre?: string;
   addedBy: string;
   createdAt: Date;
   averageRating?: number;
@@ -13,5 +14,6 @@ export interface Book {
 export interface BookInput {
   title: string;
   author: string;
+  genre?: string;
   addedBy: string;
 }

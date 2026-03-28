@@ -68,6 +68,7 @@ export async function getBooks(): Promise<Book[]> {
         id: doc.id,
         title: data.title,
         author: data.author,
+        genre: data.genre || undefined,
         addedBy: data.addedBy,
         createdAt: data.createdAt.toDate(),
         averageRating: data.averageRating || 0,
@@ -123,6 +124,7 @@ export async function getBookById(bookId: string): Promise<Book | null> {
         id: docSnap.id,
         title: data.title,
         author: data.author,
+        genre: data.genre || undefined,
         addedBy: data.addedBy,
         createdAt: data.createdAt.toDate(),
         averageRating: data.averageRating || 0,
@@ -145,13 +147,15 @@ export async function getBookById(bookId: string): Promise<Book | null> {
 export async function updateBook(
   bookId: string,
   title: string,
-  author: string
+  author: string,
+  genre?: string
 ): Promise<void> {
   try {
     const bookRef = doc(db, 'books', bookId);
     await updateDoc(bookRef, {
       title,
       author,
+      genre: genre ?? null,
     });
   } catch (error) {
     console.error('Erreur lors de la mise à jour du livre:', error);

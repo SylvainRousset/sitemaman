@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 // Forcer le rendu dynamique pour charger les données Firebase
 export const dynamic = 'force-dynamic';
 import { getBooks, deleteBook } from '@/lib/firestore';
+import { addBook as addBookMaman } from '@/lib/firestore-maman';
+import { addBook as addBookTif } from '@/lib/firestore-tif';
 import type { Book } from '@/types/book';
 import AddBookModal from '@/components/AddBookModal';
 import EditBookModal from '@/components/EditBookModal';
@@ -113,6 +115,10 @@ export default function Home() {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onRefresh={fetchBooks}
+          libraries={[
+            { name: 'Bibliothèque de Maman', addBookFn: addBookMaman },
+            { name: 'Bibliothèque de Tif', addBookFn: addBookTif },
+          ]}
         />
       )}
     </div>

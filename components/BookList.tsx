@@ -1,11 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import type { Book } from '@/types/book';
+import { useState, useEffect, useRef } from 'react';
+import type { Book, BookInput } from '@/types/book';
 import Link from 'next/link';
 import { getFavoriteAuthors, addFavoriteAuthor, removeFavoriteAuthor } from '@/lib/firestore-favorites';
 import { loanBook as loanBookDefault, returnBook as returnBookDefault } from '@/lib/firestore';
+import { getGenreStyle, GENRES, GENRE_STYLES } from '@/lib/genres';
 import LoanModal from './LoanModal';
+
+interface LibraryTarget {
+  name: string;
+  addBookFn: (bookData: BookInput) => Promise<string>;
+}
 
 interface BookListProps {
   books: Book[];
@@ -16,6 +22,7 @@ interface BookListProps {
   basePath?: string;
   loanBookFn?: (bookId: string, loanedTo: string) => Promise<void>;
   returnBookFn?: (bookId: string) => Promise<void>;
+  libraries?: LibraryTarget[];
 }
 
 // Fonction pour enlever les accents
@@ -23,7 +30,7 @@ function removeAccents(str: string): string {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-export default function BookList({ books, onEdit, onDelete, onRefresh, title, basePath, loanBookFn, returnBookFn }: BookListProps) {
+export default function BookList({ books, onEdit, onDelete, onRefresh, title, basePath, loanBookFn, returnBookFn, libraries }: BookListProps) {
   const loanBook = loanBookFn ?? loanBookDefault;
   const returnBook = returnBookFn ?? returnBookDefault;
   const bookBasePath = basePath ?? '/books';
@@ -33,6 +40,10 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [isLoanModalOpen, setIsLoanModalOpen] = useState(false);
   const [selectedBookForLoan, setSelectedBookForLoan] = useState<Book | null>(null);
+  const [copyDropdownBookId, setCopyDropdownBookId] = useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const copyDropdownRef = useRef<HTMLDivElement>(null);
 
   // Alphabet A-Z
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -48,6 +59,17 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
       }
     };
     loadFavorites();
+  }, []);
+
+  // Fermer le dropdown de copie si clic à l'extérieur
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (copyDropdownRef.current && !copyDropdownRef.current.contains(e.target as Node)) {
+        setCopyDropdownBookId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Toggle favori
@@ -75,9 +97,12 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
     );
   }
 
-  // Filtrer les livres selon le terme de recherche ou la lettre sélectionnée
+  // Filtrer les livres selon le terme de recherche, la lettre sélectionnée et le genre
   const filteredBooks = books.filter((book) => {
     const authorLower = removeAccents(book.author.toLowerCase());
+
+    // Filtre par genre
+    if (selectedGenre && book.genre !== selectedGenre) return false;
 
     // Si recherche active : filtre uniquement les auteurs qui commencent par la recherche
     if (searchTerm.trim()) {
@@ -93,6 +118,9 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
     // Sinon : afficher tous les livres
     return true;
   });
+
+  // Genres présents dans la liste des livres
+  const presentGenres = GENRES.filter((g) => books.some((b) => b.genre === g));
 
   // Regrouper les livres filtrés par auteur
   const booksByAuthor = filteredBooks.reduce((acc, book) => {
@@ -142,11 +170,37 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
     if (onRefresh) onRefresh();
   };
 
+  const handleCopyToLibrary = async (e: React.MouseEvent, book: Book, target: LibraryTarget) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const bookData: BookInput = {
+        title: book.title,
+        author: book.author,
+        addedBy: book.addedBy,
+      };
+      if (book.genre) bookData.genre = book.genre;
+      await target.addBookFn(bookData);
+      setCopyDropdownBookId(null);
+      setCopyMessage(`"${book.title}" copié dans ${target.name}`);
+      setTimeout(() => setCopyMessage(null), 3000);
+    } catch (err) {
+      console.error('Erreur lors de la copie:', err);
+    }
+  };
+
   return (
     <div>
       <h2 className="font-serif text-4xl font-bold mb-8 text-[#3e2c1c] pb-4 border-b-2 border-[#d8cfc4]">
         {title ?? 'Nos livres'} ({books.length})
       </h2>
+
+      {/* Message de succès copie */}
+      {copyMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#3e2c1c] text-white px-6 py-3 rounded-xl shadow-xl text-sm font-medium">
+          {copyMessage}
+        </div>
+      )}
 
       {/* Bouton Favoris uniquement */}
       {favoriteAuthors.length > 0 && (
@@ -162,6 +216,30 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
             <span className={showFavoritesOnly ? 'text-amber-300' : ''}>⭐</span>
             Favoris uniquement
           </button>
+        </div>
+      )}
+
+      {/* Filtre par genre */}
+      {presentGenres.length > 0 && (
+        <div className="mb-6 flex flex-wrap justify-center gap-2">
+          {presentGenres.map((genre) => {
+            const style = GENRE_STYLES[genre];
+            const isActive = selectedGenre === genre;
+            return (
+              <button
+                key={genre}
+                onClick={() => setSelectedGenre(isActive ? null : genre)}
+                className={`px-4 py-2 rounded-full font-semibold text-sm transition-all duration-200 border-2 ${style.badge} ${
+                  isActive
+                    ? `${style.border} shadow-md scale-105`
+                    : 'border-transparent opacity-60 hover:opacity-100 hover:shadow-sm'
+                }`}
+              >
+                {genre}
+                {isActive && <span className="ml-1.5 text-xs">✕</span>}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -315,9 +393,41 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
 
                     return (
                       <Link key={book.id} href={`${bookBasePath}/${book.id}`}>
-                        <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all duration-200 cursor-pointer border-l-4 border-[#8b7355] relative group">
+                        <div className={`bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all duration-200 cursor-pointer border-l-4 ${getGenreStyle(book.genre).border} relative group`}>
                           {/* Boutons d'action */}
-                          <div className="absolute top-4 right-4 flex gap-1 sm:gap-2">
+                          <div className="absolute top-4 right-4 flex gap-1 sm:gap-2 items-center">
+                            {/* Bouton copier vers autre bibliothèque */}
+                            {libraries && libraries.length > 0 && (
+                              <div className="relative" ref={copyDropdownBookId === book.id ? copyDropdownRef : undefined}>
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setCopyDropdownBookId(copyDropdownBookId === book.id ? null : book.id);
+                                  }}
+                                  className="p-1.5 sm:p-2 bg-[#e8e0d5] text-[#7a6a5a] rounded-lg hover:bg-[#d8cfc4] transition-all duration-200 shadow-sm hover:shadow-md"
+                                  title="Copier vers une autre bibliothèque"
+                                >
+                                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                </button>
+                                {copyDropdownBookId === book.id && (
+                                  <div className="absolute right-0 top-full mt-1 bg-white border border-[#d8cfc4] rounded-lg shadow-xl z-50 min-w-[160px]">
+                                    <p className="text-xs text-[#b0a79f] px-3 pt-2 pb-1 font-medium">Copier vers :</p>
+                                    {libraries.map((lib) => (
+                                      <button
+                                        key={lib.name}
+                                        onClick={(e) => handleCopyToLibrary(e, book, lib)}
+                                        className="w-full text-left px-3 py-2 text-sm text-[#3e2c1c] hover:bg-[#f5f0ea] transition-colors duration-150 last:rounded-b-lg"
+                                      >
+                                        {lib.name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                             <button
                               onClick={(e) => handleOpenLoanModal(e, book)}
                               className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md ${
@@ -352,10 +462,15 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
                           </div>
 
                           {/* Titre du livre */}
-                          <div className="pr-32 sm:pr-24">
-                            <h4 className="font-serif text-xl font-semibold text-[#3e2c1c] mb-3">
+                          <div className="pr-32 sm:pr-36">
+                            <h4 className="font-serif text-xl font-semibold text-[#3e2c1c] mb-1">
                               {book.title}
                             </h4>
+                            {book.genre && (
+                              <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-2 ${getGenreStyle(book.genre).badge}`}>
+                                {book.genre}
+                              </span>
+                            )}
 
                             {/* Badge prêté */}
                             {book.loanedTo && (

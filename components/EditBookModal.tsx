@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { updateBook as updateBookDefault, getAuthors as getAuthorsDefault } from '@/lib/firestore';
 import type { Book } from '@/types/book';
+import { GENRES } from '@/lib/genres';
 import AuthorAutocomplete from './AuthorAutocomplete';
 
 interface EditBookModalProps {
@@ -10,7 +11,7 @@ interface EditBookModalProps {
   book: Book | null;
   onClose: () => void;
   onBookUpdated: () => void;
-  updateBookFn?: (bookId: string, title: string, author: string) => Promise<void>;
+  updateBookFn?: (bookId: string, title: string, author: string, genre?: string) => Promise<void>;
   getAuthorsFn?: () => Promise<string[]>;
 }
 
@@ -19,6 +20,7 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
   const getAuthors = getAuthorsFn ?? getAuthorsDefault;
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
+  const [genre, setGenre] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingAuthors, setExistingAuthors] = useState<string[]>([]);
@@ -43,6 +45,7 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
     if (book) {
       setTitle(book.title);
       setAuthor(book.author);
+      setGenre(book.genre || '');
       setError(null);
     }
   }, [book]);
@@ -68,7 +71,7 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
     setIsSubmitting(true);
 
     try {
-      await updateBook(book.id, title.trim(), author.trim());
+      await updateBook(book.id, title.trim(), author.trim(), genre || undefined);
       onBookUpdated();
       onClose();
     } catch (err) {
@@ -147,6 +150,23 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
                 labelClassName="block text-base font-semibold text-[#7a6a5a] mb-2"
                 className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
               />
+            </div>
+
+            <div>
+              <label htmlFor="edit-genre" className="block text-base font-semibold text-[#7a6a5a] mb-2">
+                Genre
+              </label>
+              <select
+                id="edit-genre"
+                value={genre}
+                onChange={(e) => setGenre(e.target.value)}
+                className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
+              >
+                <option value="">-- Choisir un genre --</option>
+                {GENRES.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
             </div>
 
             <div className="flex gap-4 pt-6">

@@ -12,6 +12,8 @@ import {
   loanBook,
   returnBook,
 } from '@/lib/firestore-tif';
+import { addBook as addBookMain } from '@/lib/firestore';
+import { addBook as addBookMaman } from '@/lib/firestore-maman';
 import type { Book } from '@/types/book';
 import AddBookModal from '@/components/AddBookModal';
 import EditBookModal from '@/components/EditBookModal';
@@ -118,6 +120,10 @@ export default function TifLibrary() {
           basePath="/tif/books"
           loanBookFn={loanBook}
           returnBookFn={returnBook}
+          libraries={[
+            { name: 'Bibliothèque Principale', addBookFn: addBookMain },
+            { name: 'Bibliothèque de Maman', addBookFn: addBookMaman },
+          ]}
         />
       )}
     </div>

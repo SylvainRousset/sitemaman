@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { addBook as addBookDefault, getAuthors as getAuthorsDefault } from '@/lib/firestore';
 import type { BookInput } from '@/types/book';
 import type { ReviewInput } from '@/types/review';
+import { GENRES } from '@/lib/genres';
 import StarRating from './StarRating';
 import AuthorAutocomplete from './AuthorAutocomplete';
 
@@ -27,6 +28,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
     book: {
       title: '',
       author: '',
+      genre: '',
       addedBy: '',
     },
     review: {
@@ -61,6 +63,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
         book: {
           title: '',
           author: '',
+          genre: '',
           addedBy: '',
         },
         review: {
@@ -91,6 +94,12 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
     setIsSubmitting(true);
 
     try {
+      // Préparer les données du livre avec le genre
+      const bookData: BookInput = {
+        ...formData.book,
+        genre: formData.book.genre || undefined,
+      };
+
       // Vérifier s'il y a une review à ajouter
       const hasReviewData = formData.review.rating || formData.review.comment?.trim();
 
@@ -110,10 +119,10 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
           reviewData.comment = formData.review.comment.trim();
         }
 
-        await addBook(formData.book, reviewData);
+        await addBook(bookData, reviewData);
       } else {
         // Ajouter le livre sans review
-        await addBook(formData.book);
+        await addBook(bookData);
       }
 
       onBookAdded();
@@ -226,6 +235,24 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
                   labelClassName="block text-base font-semibold text-[#7a6a5a] mb-2"
                   className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
                 />
+              </div>
+
+              <div>
+                <label htmlFor="genre" className="block text-base font-semibold text-[#7a6a5a] mb-2">
+                  Genre
+                </label>
+                <select
+                  id="genre"
+                  name="genre"
+                  value={formData.book.genre || ''}
+                  onChange={(e) => setFormData({ ...formData, book: { ...formData.book, genre: e.target.value } })}
+                  className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
+                >
+                  <option value="">-- Choisir un genre --</option>
+                  {GENRES.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
