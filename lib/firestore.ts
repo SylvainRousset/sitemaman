@@ -1,3 +1,4 @@
+import { normalizeAuthor } from './author-utils';
 import {
   collection,
   addDoc,
@@ -91,17 +92,19 @@ export async function getBooks(): Promise<Book[]> {
 export async function getAuthors(): Promise<string[]> {
   try {
     const querySnapshot = await getDocs(booksCollection);
-    const authorsSet = new Set<string>();
+    const authorsMap = new Map<string, string>();
 
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       if (data.author) {
-        authorsSet.add(data.author);
+        const key = normalizeAuthor(data.author);
+        if (!authorsMap.has(key)) {
+          authorsMap.set(key, data.author.trim());
+        }
       }
     });
 
-    // Trier en ignorant les accents et la casse
-    return Array.from(authorsSet).sort((a, b) =>
+    return Array.from(authorsMap.values()).sort((a, b) =>
       a.localeCompare(b, 'fr', { sensitivity: 'base' })
     );
   } catch (error) {

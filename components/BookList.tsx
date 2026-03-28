@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getFavoriteAuthors, addFavoriteAuthor, removeFavoriteAuthor } from '@/lib/firestore-favorites';
 import { loanBook as loanBookDefault, returnBook as returnBookDefault } from '@/lib/firestore';
 import { getGenreStyle, GENRES, GENRE_STYLES } from '@/lib/genres';
+import { removeAccents, normalizeAuthor, groupBooksByAuthor } from '@/lib/author-utils';
 import LoanModal from './LoanModal';
 
 interface LibraryTarget {
@@ -25,10 +26,6 @@ interface BookListProps {
   libraries?: LibraryTarget[];
 }
 
-// Fonction pour enlever les accents
-function removeAccents(str: string): string {
-  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
 
 export default function BookList({ books, onEdit, onDelete, onRefresh, title, basePath, loanBookFn, returnBookFn, libraries }: BookListProps) {
   const loanBook = loanBookFn ?? loanBookDefault;
@@ -122,20 +119,8 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
   // Genres présents dans la liste des livres
   const presentGenres = GENRES.filter((g) => books.some((b) => b.genre === g));
 
-  // Normaliser un nom d'auteur pour le regroupement (trim + casse + accents + espaces multiples)
-  function normalizeAuthor(name: string): string {
-    return removeAccents(name.trim().toLowerCase()).replace(/\s+/g, ' ');
-  }
-
   // Regrouper les livres filtrés par auteur (en ignorant casse, accents, espaces)
-  const booksByAuthorNorm: Record<string, { displayName: string; books: Book[] }> = {};
-  filteredBooks.forEach((book) => {
-    const key = normalizeAuthor(book.author);
-    if (!booksByAuthorNorm[key]) {
-      booksByAuthorNorm[key] = { displayName: book.author.trim(), books: [] };
-    }
-    booksByAuthorNorm[key].books.push(book);
-  });
+  const booksByAuthorNorm = groupBooksByAuthor(filteredBooks);
 
   // Trier les auteurs alphabétiquement (en ignorant les accents et la casse)
   let sortedAuthors = Object.keys(booksByAuthorNorm).sort((a, b) =>
