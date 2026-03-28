@@ -16,159 +16,110 @@ interface AddBookModalProps {
   getAuthorsFn?: () => Promise<string[]>;
 }
 
-interface FormData {
-  book: BookInput;
-  review: ReviewInput;
-}
+const emptyReview: ReviewInput = { reviewerName: '', rating: undefined, comment: '' };
 
 export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, getAuthorsFn }: AddBookModalProps) {
   const addBook = addBookFn ?? addBookDefault;
   const getAuthors = getAuthorsFn ?? getAuthorsDefault;
-  const [formData, setFormData] = useState<FormData>({
-    book: {
-      title: '',
-      author: '',
-      genre: '',
-      addedBy: '',
-    },
-    review: {
-      reviewerName: '',
-      rating: undefined,
-      comment: '',
-    },
-  });
+
+  const [titles, setTitles] = useState<string[]>(['']);
+  const [author, setAuthor] = useState('');
+  const [genre, setGenre] = useState('');
+  const [addedBy, setAddedBy] = useState('');
+  const [review, setReview] = useState<ReviewInput>(emptyReview);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [existingAuthors, setExistingAuthors] = useState<string[]>([]);
 
-  // Charger les auteurs existants quand le modal s'ouvre
+  const isSingleTitle = titles.length === 1;
+
   useEffect(() => {
     if (isOpen) {
-      const loadAuthors = async () => {
-        try {
-          const authors = await getAuthors();
-          setExistingAuthors(authors);
-        } catch (err) {
-          console.error('Erreur lors du chargement des auteurs:', err);
-        }
-      };
-      loadAuthors();
+      getAuthors().then(setExistingAuthors).catch(console.error);
     }
   }, [isOpen]);
 
-  // Réinitialiser le formulaire quand le modal se ferme
   useEffect(() => {
     if (!isOpen) {
-      setFormData({
-        book: {
-          title: '',
-          author: '',
-          genre: '',
-          addedBy: '',
-        },
-        review: {
-          reviewerName: '',
-          rating: undefined,
-          comment: '',
-        },
-      });
+      setTitles(['']);
+      setAuthor('');
+      setGenre('');
+      setAddedBy('');
+      setReview(emptyReview);
       setError(null);
+      setSubmitProgress(null);
     }
   }, [isOpen]);
 
-  // Empêcher le scroll du body quand le modal est ouvert
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
+    document.body.style.overflow = isOpen ? 'hidden' : 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
+
+  const handleAddTitle = () => setTitles([...titles, '']);
+
+  const handleRemoveTitle = (index: number) => {
+    setTitles(titles.filter((_, i) => i !== index));
+  };
+
+  const handleTitleChange = (index: number, value: string) => {
+    const updated = [...titles];
+    updated[index] = value;
+    setTitles(updated);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const validTitles = titles.map(t => t.trim()).filter(Boolean);
+    if (validTitles.length === 0) {
+      setError('Veuillez entrer au moins un titre.');
+      return;
+    }
+
     setIsSubmitting(true);
+    setSubmitProgress({ done: 0, total: validTitles.length });
 
     try {
-      // Préparer les données du livre avec le genre
-      const bookData: BookInput = {
-        ...formData.book,
-        genre: formData.book.genre || undefined,
-      };
+      for (let i = 0; i < validTitles.length; i++) {
+        const bookData: BookInput = { title: validTitles[i], author: author.trim(), addedBy: addedBy.trim() };
+        if (genre) bookData.genre = genre;
 
-      // Vérifier s'il y a une review à ajouter
-      const hasReviewData = formData.review.rating || formData.review.comment?.trim();
-
-      if (hasReviewData) {
-        // Nettoyer les données de la review
-        const reviewData: ReviewInput = {
-          reviewerName: formData.review.reviewerName.trim(),
-        };
-
-        // Ajouter rating seulement s'il existe
-        if (formData.review.rating) {
-          reviewData.rating = formData.review.rating;
+        // Avis uniquement pour le premier titre si mode titre unique
+        const hasReview = isSingleTitle && (review.rating || review.comment?.trim());
+        if (hasReview) {
+          const reviewData: ReviewInput = { reviewerName: (review.reviewerName || addedBy).trim() };
+          if (review.rating) reviewData.rating = review.rating;
+          if (review.comment?.trim()) reviewData.comment = review.comment.trim();
+          await addBook(bookData, reviewData);
+        } else {
+          await addBook(bookData);
         }
 
-        // Ajouter comment seulement s'il existe et n'est pas vide
-        if (formData.review.comment?.trim()) {
-          reviewData.comment = formData.review.comment.trim();
-        }
-
-        await addBook(bookData, reviewData);
-      } else {
-        // Ajouter le livre sans review
-        await addBook(bookData);
+        setSubmitProgress({ done: i + 1, total: validTitles.length });
       }
 
       onBookAdded();
       onClose();
     } catch (err) {
-      setError('Erreur lors de l\'ajout du livre. Veuillez réessayer.');
+      setError('Erreur lors de l\'ajout. Veuillez réessayer.');
       console.error(err);
     } finally {
       setIsSubmitting(false);
+      setSubmitProgress(null);
     }
-  };
-
-  const handleBookChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newBookData = {
-      ...formData.book,
-      [e.target.name]: e.target.value,
-    };
-
-    setFormData({
-      ...formData,
-      book: newBookData,
-      // Synchroniser reviewerName avec addedBy
-      review: {
-        ...formData.review,
-        reviewerName: e.target.name === 'addedBy' ? e.target.value : formData.review.reviewerName,
-      },
-    });
-  };
-
-  const handleRatingChange = (rating: number) => {
-    setFormData({
-      ...formData,
-      review: {
-        ...formData.review,
-        rating: rating,
-      },
-    });
   };
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
+    if (e.target === e.currentTarget) onClose();
   };
 
   if (!isOpen) return null;
+
+  const validCount = titles.filter(t => t.trim()).length;
 
   return (
     <div
@@ -176,17 +127,14 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
       onClick={handleOverlayClick}
     >
       <div className="bg-[#fdfaf5] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scaleIn border border-[#d8cfc4]">
+
+        {/* Header */}
         <div className="sticky top-0 bg-[#fdfaf5] border-b-2 border-[#d8cfc4] px-8 py-6 flex items-center justify-between">
           <h2 className="font-serif text-3xl font-bold text-[#3e2c1c] flex items-center gap-3">
             <span className="text-[#8b7355]">📖</span>
-            Ajouter un livre
+            Ajouter {titles.length > 1 ? `${titles.length} livres` : 'un livre'}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-[#b0a79f] hover:text-[#7a6a5a] transition-colors duration-200"
-            aria-label="Fermer"
-          >
+          <button type="button" onClick={onClose} className="text-[#b0a79f] hover:text-[#7a6a5a] transition-colors duration-200" aria-label="Fermer">
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -201,51 +149,81 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
           )}
 
           <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Informations du livre */}
-            <div className="space-y-5">
-              <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">Informations du livre</h3>
 
-              <div>
-                <label htmlFor="title" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                  Titre du livre *
-                </label>
-                <input
-                  type="text"
-                  id="title"
-                  name="title"
-                  value={formData.book.title}
-                  onChange={handleBookChange}
-                  required
-                  className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
-                  placeholder="Ex: Le Petit Prince"
-                />
+            {/* Titres */}
+            <div className="space-y-4">
+              <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
+                Titre{titles.length > 1 ? 's' : ''}
+              </h3>
+
+              <div className="space-y-3">
+                {titles.map((title, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <div className="flex-1 flex items-center gap-2">
+                      {titles.length > 1 && (
+                        <span className="text-sm font-bold text-[#b0a79f] w-5 text-right shrink-0">{index + 1}.</span>
+                      )}
+                      <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => handleTitleChange(index, e.target.value)}
+                        required={index === 0}
+                        className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
+                        placeholder={index === 0 ? 'Ex: Le Petit Prince' : `Titre ${index + 1}...`}
+                        autoFocus={index === titles.length - 1 && index > 0}
+                      />
+                    </div>
+                    {titles.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTitle(index)}
+                        className="p-2 text-[#b0a79f] hover:text-[#c75450] hover:bg-red-50 rounded-lg transition-all duration-200"
+                        title="Supprimer ce titre"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
+
+              <button
+                type="button"
+                onClick={handleAddTitle}
+                className="flex items-center gap-2 text-[#6b4f3a] hover:text-[#5a3f2e] font-semibold text-base transition-colors duration-200 mt-1"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Ajouter un autre titre
+              </button>
+            </div>
+
+            {/* Auteur, Genre, Ajouté par */}
+            <div className="space-y-5 pt-2 border-t border-[#d8cfc4]">
+              <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
+                Informations communes
+              </h3>
 
               <div>
                 <AuthorAutocomplete
-                  value={formData.book.author}
-                  onChange={(value) => handleBookChange({ target: { name: 'author', value } } as any)}
+                  value={author}
+                  onChange={setAuthor}
                   authors={existingAuthors}
                   required
-                  label={
-                    <>
-                      Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez un nouveau)</span>}
-                    </>
-                  }
+                  label={<>Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez un nouveau)</span>}</>}
                   labelClassName="block text-base font-semibold text-[#7a6a5a] mb-2"
                   className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
                 />
               </div>
 
               <div>
-                <label htmlFor="genre" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                  Genre
-                </label>
+                <label className="block text-base font-semibold text-[#7a6a5a] mb-2">Genre</label>
                 <select
-                  id="genre"
-                  name="genre"
-                  value={formData.book.genre || ''}
-                  onChange={(e) => setFormData({ ...formData, book: { ...formData.book, genre: e.target.value } })}
+                  value={genre}
+                  onChange={(e) => setGenre(e.target.value)}
                   className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
                 >
                   <option value="">-- Choisir un genre --</option>
@@ -256,15 +234,14 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
               </div>
 
               <div>
-                <label htmlFor="addedBy" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                  Ajouté par *
-                </label>
+                <label className="block text-base font-semibold text-[#7a6a5a] mb-2">Ajouté par *</label>
                 <input
                   type="text"
-                  id="addedBy"
-                  name="addedBy"
-                  value={formData.book.addedBy}
-                  onChange={handleBookChange}
+                  value={addedBy}
+                  onChange={(e) => {
+                    setAddedBy(e.target.value);
+                    setReview(r => ({ ...r, reviewerName: e.target.value }));
+                  }}
                   required
                   className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
                   placeholder="Votre prénom"
@@ -272,57 +249,41 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
               </div>
             </div>
 
-            {/* Premier avis (optionnel) */}
-            <div className="space-y-5 pt-6 border-t-2 border-[#d8cfc4]">
-              <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
-                Votre premier avis <span className="text-sm font-normal text-[#b0a79f]">(optionnel)</span>
-              </h3>
+            {/* Avis (seulement si titre unique) */}
+            {isSingleTitle && (
+              <div className="space-y-5 pt-6 border-t-2 border-[#d8cfc4]">
+                <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
+                  Votre premier avis <span className="text-sm font-normal text-[#b0a79f]">(optionnel)</span>
+                </h3>
 
-              <div>
-                <label htmlFor="reviewerName" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                  Votre nom
-                </label>
-                <input
-                  type="text"
-                  id="reviewerName"
-                  value={formData.review.reviewerName}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    review: { ...formData.review, reviewerName: e.target.value }
-                  })}
-                  className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
-                  placeholder="Votre prénom"
-                />
-              </div>
+                <div>
+                  <label className="block text-base font-semibold text-[#7a6a5a] mb-2">Votre nom</label>
+                  <input
+                    type="text"
+                    value={review.reviewerName}
+                    onChange={(e) => setReview({ ...review, reviewerName: e.target.value })}
+                    className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
+                    placeholder="Votre prénom"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-base font-semibold text-[#7a6a5a] mb-3">
-                  Note
-                </label>
-                <StarRating
-                  value={formData.review.rating}
-                  onChange={handleRatingChange}
-                  size="lg"
-                />
-              </div>
+                <div>
+                  <label className="block text-base font-semibold text-[#7a6a5a] mb-3">Note</label>
+                  <StarRating value={review.rating} onChange={(r) => setReview({ ...review, rating: r })} size="lg" />
+                </div>
 
-              <div>
-                <label htmlFor="comment" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                  Commentaire
-                </label>
-                <textarea
-                  id="comment"
-                  value={formData.review.comment || ''}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    review: { ...formData.review, comment: e.target.value }
-                  })}
-                  rows={5}
-                  className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white resize-none shadow-sm transition-all duration-200"
-                  placeholder="Partagez votre avis sur ce livre..."
-                />
+                <div>
+                  <label className="block text-base font-semibold text-[#7a6a5a] mb-2">Commentaire</label>
+                  <textarea
+                    value={review.comment || ''}
+                    onChange={(e) => setReview({ ...review, comment: e.target.value })}
+                    rows={5}
+                    className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white resize-none shadow-sm transition-all duration-200"
+                    placeholder="Partagez votre avis sur ce livre..."
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Boutons */}
             <div className="flex gap-4 pt-6">
@@ -339,7 +300,11 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
                 disabled={isSubmitting}
                 className="flex-1 bg-[#6b4f3a] text-white py-4 px-6 rounded-lg hover:bg-[#5a3f2e] focus:outline-none focus:ring-2 focus:ring-[#8b7355] focus:ring-offset-2 disabled:bg-[#b0a79f] disabled:cursor-not-allowed transition-all duration-200 font-semibold text-lg shadow-md hover:shadow-lg"
               >
-                {isSubmitting ? 'Ajout en cours...' : 'Ajouter le livre'}
+                {isSubmitting && submitProgress
+                  ? `Ajout en cours... (${submitProgress.done}/${submitProgress.total})`
+                  : validCount > 1
+                    ? `Ajouter ${validCount} livres`
+                    : 'Ajouter le livre'}
               </button>
             </div>
           </form>
@@ -347,33 +312,10 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
       </div>
 
       <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes scaleIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.2s ease-out;
-        }
-
-        .animate-scaleIn {
-          animation: scaleIn 0.2s ease-out;
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
+        .animate-scaleIn { animation: scaleIn 0.2s ease-out; }
       `}</style>
     </div>
   );

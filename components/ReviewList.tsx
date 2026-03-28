@@ -1,13 +1,14 @@
 import type { Review } from '@/types/review';
+import type { ReviewInput } from '@/types/review';
 import ReviewCard from './ReviewCard';
 
 interface ReviewListProps {
   reviews: Review[];
-  onReviewEdit: (review: Review) => void;
+  onReviewSave: (reviewId: string, data: ReviewInput) => Promise<void>;
   onReviewDelete: (reviewId: string) => void;
 }
 
-export default function ReviewList({ reviews, onReviewEdit, onReviewDelete }: ReviewListProps) {
+export default function ReviewList({ reviews, onReviewSave, onReviewDelete }: ReviewListProps) {
   if (reviews.length === 0) {
     return (
       <div className="text-center py-16 bg-white rounded-2xl shadow-md border border-[#d8cfc4]">
@@ -30,7 +31,7 @@ export default function ReviewList({ reviews, onReviewEdit, onReviewDelete }: Re
           <ReviewCard
             key={review.id}
             review={review}
-            onEdit={onReviewEdit}
+            onSave={onReviewSave}
             onDelete={onReviewDelete}
           />
         ))}

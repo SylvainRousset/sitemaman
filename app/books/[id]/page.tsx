@@ -26,7 +26,6 @@ export default function BookDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [showReviewForm, setShowReviewForm] = useState(false);
-  const [editingReview, setEditingReview] = useState<Review | null>(null);
 
   useEffect(() => {
     fetchBookDetails();
@@ -59,12 +58,7 @@ export default function BookDetailPage() {
 
   const handleReviewSubmit = async (reviewData: ReviewInput) => {
     try {
-      if (editingReview) {
-        await updateReview(bookId, editingReview.id, reviewData);
-        setEditingReview(null);
-      } else {
-        await addReview(bookId, reviewData);
-      }
+      await addReview(bookId, reviewData);
       await fetchBookDetails();
       setShowReviewForm(false);
     } catch (err) {
@@ -73,16 +67,15 @@ export default function BookDetailPage() {
     }
   };
 
-  const handleReviewEdit = (review: Review) => {
-    setEditingReview(review);
-    setShowReviewForm(true);
+  const handleReviewSave = async (reviewId: string, data: ReviewInput) => {
+    await updateReview(bookId, reviewId, data);
+    await fetchBookDetails();
   };
 
   const handleReviewDelete = async (reviewId: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet avis ?')) {
       return;
     }
-
     try {
       await deleteReview(bookId, reviewId);
       await fetchBookDetails();
@@ -90,11 +83,6 @@ export default function BookDetailPage() {
       setError('Erreur lors de la suppression de l\'avis');
       console.error(err);
     }
-  };
-
-  const handleCancelReview = () => {
-    setShowReviewForm(false);
-    setEditingReview(null);
   };
 
   if (isLoading) {
@@ -175,16 +163,7 @@ export default function BookDetailPage() {
         {showReviewForm && (
           <ReviewForm
             onSubmit={handleReviewSubmit}
-            initialData={
-              editingReview
-                ? {
-                    reviewerName: editingReview.reviewerName,
-                    rating: editingReview.rating,
-                    comment: editingReview.comment,
-                  }
-                : undefined
-            }
-            onCancel={handleCancelReview}
+            onCancel={() => setShowReviewForm(false)}
           />
         )}
       </div>
@@ -192,7 +171,7 @@ export default function BookDetailPage() {
       {/* Liste des avis */}
       <ReviewList
         reviews={reviews}
-        onReviewEdit={handleReviewEdit}
+        onReviewSave={handleReviewSave}
         onReviewDelete={handleReviewDelete}
       />
     </div>
