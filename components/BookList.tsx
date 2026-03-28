@@ -122,23 +122,29 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
   // Genres présents dans la liste des livres
   const presentGenres = GENRES.filter((g) => books.some((b) => b.genre === g));
 
-  // Regrouper les livres filtrés par auteur
-  const booksByAuthor = filteredBooks.reduce((acc, book) => {
-    if (!acc[book.author]) {
-      acc[book.author] = [];
+  // Normaliser un nom d'auteur pour le regroupement (trim + casse + accents + espaces multiples)
+  function normalizeAuthor(name: string): string {
+    return removeAccents(name.trim().toLowerCase()).replace(/\s+/g, ' ');
+  }
+
+  // Regrouper les livres filtrés par auteur (en ignorant casse, accents, espaces)
+  const booksByAuthorNorm: Record<string, { displayName: string; books: Book[] }> = {};
+  filteredBooks.forEach((book) => {
+    const key = normalizeAuthor(book.author);
+    if (!booksByAuthorNorm[key]) {
+      booksByAuthorNorm[key] = { displayName: book.author.trim(), books: [] };
     }
-    acc[book.author].push(book);
-    return acc;
-  }, {} as Record<string, Book[]>);
+    booksByAuthorNorm[key].books.push(book);
+  });
 
   // Trier les auteurs alphabétiquement (en ignorant les accents et la casse)
-  let sortedAuthors = Object.keys(booksByAuthor).sort((a, b) =>
+  let sortedAuthors = Object.keys(booksByAuthorNorm).sort((a, b) =>
     a.localeCompare(b, 'fr', { sensitivity: 'base' })
   );
 
-  // Filtrer par favoris si activé
+  // Filtrer par favoris si activé (comparer avec le displayName)
   if (showFavoritesOnly) {
-    sortedAuthors = sortedAuthors.filter(author => favoriteAuthors.includes(author));
+    sortedAuthors = sortedAuthors.filter(key => favoriteAuthors.includes(booksByAuthorNorm[key].displayName));
   }
 
   const handleEdit = (e: React.MouseEvent, book: Book) => {
@@ -362,17 +368,18 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
           </div>
 
           <div className="space-y-12">
-            {sortedAuthors.map((author) => {
-              const isFavorite = favoriteAuthors.includes(author);
+            {sortedAuthors.map((authorKey) => {
+              const { displayName, books: authorBooks } = booksByAuthorNorm[authorKey];
+              const isFavorite = favoriteAuthors.includes(displayName);
 
               return (
-                <div key={author}>
+                <div key={authorKey}>
                   {/* Nom de l'auteur */}
                   <h3 className="font-serif text-2xl font-bold text-[#3e2c1c] uppercase border-b-2 border-[#d8cfc4] pb-3 mb-6 flex items-center gap-3">
                     <span className="text-[#8b7355]">✦</span>
-                    {author}
+                    {displayName}
                     <button
-                      onClick={() => toggleFavorite(author)}
+                      onClick={() => toggleFavorite(displayName)}
                       className={`ml-2 transition-all duration-200 hover:scale-110 ${
                         isFavorite ? 'text-amber-500' : 'text-[#b0a79f] hover:text-amber-400'
                       }`}
@@ -384,7 +391,7 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
 
                 {/* Liste des livres de cet auteur */}
                 <div className="space-y-4">
-                  {booksByAuthor[author].map((book) => {
+                  {authorBooks.map((book) => {
                     const formattedDate = book.createdAt.toLocaleDateString('fr-FR', {
                       day: 'numeric',
                       month: 'long',
