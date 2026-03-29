@@ -499,7 +499,7 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
 
                             {/* Infos supplémentaires */}
                             <div className="flex items-center gap-4 text-base text-[#7a6a5a]">
-                              <span className="text-sm">Ajouté le {formattedDate}</span>
+                              <span className="text-sm">Ajouté par <span className="font-medium">{book.addedBy}</span> le {formattedDate}</span>
                               <span className="text-[#d8cfc4]">•</span>
                               {book.averageRating && book.averageRating > 0 ? (
                                 <span className="flex items-center gap-1.5">
