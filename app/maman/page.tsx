@@ -11,6 +11,7 @@ import {
   getAuthors,
   addReview,
   getReviews,
+  updateReview,
   loanBook,
   returnBook,
 } from '@/lib/firestore-maman';
@@ -102,6 +103,8 @@ export default function MamanLibrary() {
         updateBookFn={updateBook}
         getAuthorsFn={getAuthors}
         addReviewFn={addReview}
+        getReviewsFn={getReviews}
+        updateReviewFn={updateReview}
       />
 
       {error && (

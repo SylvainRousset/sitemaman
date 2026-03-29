@@ -1,9 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { updateBook as updateBookDefault, getAuthors as getAuthorsDefault, addReview as addReviewDefault } from '@/lib/firestore';
+import {
+  updateBook as updateBookDefault,
+  getAuthors as getAuthorsDefault,
+  addReview as addReviewDefault,
+  getReviews as getReviewsDefault,
+  updateReview as updateReviewDefault,
+} from '@/lib/firestore';
 import type { Book } from '@/types/book';
-import type { ReviewInput } from '@/types/review';
+import type { Review, ReviewInput } from '@/types/review';
 import { GENRES } from '@/lib/genres';
 import StarRating from './StarRating';
 import AuthorAutocomplete from './AuthorAutocomplete';
@@ -16,20 +22,29 @@ interface EditBookModalProps {
   updateBookFn?: (bookId: string, title: string, author: string, genre?: string, addedBy?: string) => Promise<void>;
   getAuthorsFn?: () => Promise<string[]>;
   addReviewFn?: (bookId: string, reviewData: ReviewInput) => Promise<string>;
+  getReviewsFn?: (bookId: string) => Promise<Review[]>;
+  updateReviewFn?: (bookId: string, reviewId: string, reviewData: ReviewInput) => Promise<void>;
 }
 
 const emptyReview: ReviewInput = { reviewerName: '', rating: undefined, comment: '' };
 
-export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, updateBookFn, getAuthorsFn, addReviewFn }: EditBookModalProps) {
+export default function EditBookModal({
+  isOpen, book, onClose, onBookUpdated,
+  updateBookFn, getAuthorsFn, addReviewFn, getReviewsFn, updateReviewFn,
+}: EditBookModalProps) {
   const updateBook = updateBookFn ?? updateBookDefault;
   const getAuthors = getAuthorsFn ?? getAuthorsDefault;
   const addReview = addReviewFn ?? addReviewDefault;
+  const getReviews = getReviewsFn ?? getReviewsDefault;
+  const updateReview = updateReviewFn ?? updateReviewDefault;
 
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [genre, setGenre] = useState('');
   const [addedBy, setAddedBy] = useState('');
-  const [review, setReview] = useState<ReviewInput>(emptyReview);
+  const [newReview, setNewReview] = useState<ReviewInput>(emptyReview);
+  const [existingReviews, setExistingReviews] = useState<Review[]>([]);
+  const [reviewEdits, setReviewEdits] = useState<Record<string, ReviewInput>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingAuthors, setExistingAuthors] = useState<string[]>([]);
@@ -46,8 +61,22 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
       setAuthor(book.author);
       setGenre(book.genre || '');
       setAddedBy(book.addedBy || '');
-      setReview(emptyReview);
+      setNewReview(emptyReview);
       setError(null);
+      // Charger les avis existants
+      if (book.totalReviews && book.totalReviews > 0) {
+        getReviews(book.id).then((reviews) => {
+          setExistingReviews(reviews);
+          const edits: Record<string, ReviewInput> = {};
+          reviews.forEach(r => {
+            edits[r.id] = { reviewerName: r.reviewerName, rating: r.rating, comment: r.comment || '' };
+          });
+          setReviewEdits(edits);
+        }).catch(console.error);
+      } else {
+        setExistingReviews([]);
+        setReviewEdits({});
+      }
     }
   }, [book]);
 
@@ -56,22 +85,37 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
 
+  const handleReviewEdit = (reviewId: string, field: keyof ReviewInput, value: string | number | undefined) => {
+    setReviewEdits(prev => ({ ...prev, [reviewId]: { ...prev[reviewId], [field]: value } }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
     if (!book) return;
-
     setIsSubmitting(true);
-
     try {
       await updateBook(book.id, title.trim(), author.trim(), genre || undefined, addedBy.trim() || undefined);
 
-      const hasReview = review.rating || review.comment?.trim();
-      if (hasReview) {
-        const reviewData: ReviewInput = { reviewerName: (review.reviewerName || addedBy).trim() };
-        if (review.rating) reviewData.rating = review.rating;
-        if (review.comment?.trim()) reviewData.comment = review.comment.trim();
+      // Mettre à jour les avis existants modifiés
+      await Promise.all(
+        existingReviews.map((r) => {
+          const edit = reviewEdits[r.id];
+          if (!edit) return Promise.resolve();
+          return updateReview(book.id, r.id, {
+            reviewerName: edit.reviewerName || r.reviewerName,
+            rating: edit.rating,
+            comment: edit.comment,
+          });
+        })
+      );
+
+      // Ajouter un nouvel avis si rempli
+      const hasNewReview = newReview.rating || newReview.comment?.trim();
+      if (hasNewReview) {
+        const reviewData: ReviewInput = { reviewerName: (newReview.reviewerName || addedBy).trim() };
+        if (newReview.rating) reviewData.rating = newReview.rating;
+        if (newReview.comment?.trim()) reviewData.comment = newReview.comment.trim();
         await addReview(book.id, reviewData);
       }
 
@@ -135,9 +179,7 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
 
             {/* Titre */}
             <div className="space-y-4 pt-2 border-t border-[#d8cfc4]">
-              <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
-                Titre
-              </h3>
+              <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">Titre</h3>
               <input
                 type="text"
                 value={title}
@@ -171,7 +213,7 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
                   value={addedBy}
                   onChange={(e) => {
                     setAddedBy(e.target.value);
-                    setReview(r => ({ ...r, reviewerName: e.target.value }));
+                    setNewReview(r => ({ ...r, reviewerName: e.target.value }));
                   }}
                   required
                   className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
@@ -180,7 +222,50 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
               </div>
             </div>
 
-            {/* Avis (optionnel) */}
+            {/* Avis existants */}
+            {existingReviews.length > 0 && (
+              <div className="space-y-5 pt-6 border-t-2 border-[#d8cfc4]">
+                <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
+                  Avis existants
+                </h3>
+                {existingReviews.map((r) => {
+                  const edit = reviewEdits[r.id] ?? { reviewerName: r.reviewerName, rating: r.rating, comment: r.comment || '' };
+                  return (
+                    <div key={r.id} className="bg-[#f5f0ea] rounded-xl p-5 space-y-4 border border-[#d8cfc4]">
+                      <div>
+                        <label className="block text-sm font-semibold text-[#7a6a5a] mb-1.5">Nom</label>
+                        <input
+                          type="text"
+                          value={edit.reviewerName}
+                          onChange={(e) => handleReviewEdit(r.id, 'reviewerName', e.target.value)}
+                          className="w-full px-4 py-2.5 text-base border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-[#7a6a5a] mb-2">Note</label>
+                        <StarRating
+                          value={edit.rating}
+                          onChange={(val) => handleReviewEdit(r.id, 'rating', val)}
+                          size="md"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-[#7a6a5a] mb-1.5">Commentaire</label>
+                        <textarea
+                          value={edit.comment || ''}
+                          onChange={(e) => handleReviewEdit(r.id, 'comment', e.target.value)}
+                          rows={3}
+                          className="w-full px-4 py-2.5 text-base border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white resize-none shadow-sm transition-all duration-200"
+                          placeholder="Commentaire..."
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Nouvel avis (optionnel) */}
             <div className="space-y-5 pt-6 border-t-2 border-[#d8cfc4]">
               <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
                 Ajouter un avis <span className="text-sm font-normal text-[#b0a79f]">(optionnel)</span>
@@ -190,8 +275,8 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
                 <label className="block text-base font-semibold text-[#7a6a5a] mb-2">Votre nom</label>
                 <input
                   type="text"
-                  value={review.reviewerName}
-                  onChange={(e) => setReview({ ...review, reviewerName: e.target.value })}
+                  value={newReview.reviewerName}
+                  onChange={(e) => setNewReview({ ...newReview, reviewerName: e.target.value })}
                   className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
                   placeholder="Votre prénom"
                 />
@@ -199,15 +284,15 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
 
               <div>
                 <label className="block text-base font-semibold text-[#7a6a5a] mb-3">Note</label>
-                <StarRating value={review.rating} onChange={(r) => setReview({ ...review, rating: r })} size="lg" />
+                <StarRating value={newReview.rating} onChange={(r) => setNewReview({ ...newReview, rating: r })} size="lg" />
               </div>
 
               <div>
                 <label className="block text-base font-semibold text-[#7a6a5a] mb-2">Commentaire</label>
                 <textarea
-                  value={review.comment || ''}
-                  onChange={(e) => setReview({ ...review, comment: e.target.value })}
-                  rows={5}
+                  value={newReview.comment || ''}
+                  onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+                  rows={4}
                   className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white resize-none shadow-sm transition-all duration-200"
                   placeholder="Partagez votre avis sur ce livre..."
                 />

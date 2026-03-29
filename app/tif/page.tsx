@@ -11,6 +11,7 @@ import {
   getAuthors,
   addReview,
   getReviews,
+  updateReview,
   loanBook,
   returnBook,
 } from '@/lib/firestore-tif';
@@ -101,6 +102,8 @@ export default function TifLibrary() {
         updateBookFn={updateBook}
         getAuthorsFn={getAuthors}
         addReviewFn={addReview}
+        getReviewsFn={getReviews}
+        updateReviewFn={updateReview}
       />
 
       {error && (
