@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { Book, BookInput } from '@/types/book';
+import type { Review } from '@/types/review';
 import Link from 'next/link';
 import { getFavoriteAuthors, addFavoriteAuthor, removeFavoriteAuthor } from '@/lib/firestore-favorites';
-import { loanBook as loanBookDefault, returnBook as returnBookDefault } from '@/lib/firestore';
+import { loanBook as loanBookDefault, returnBook as returnBookDefault, getReviews as getReviewsDefault } from '@/lib/firestore';
 import { getGenreStyle, GENRES, GENRE_STYLES } from '@/lib/genres';
 import { removeAccents, normalizeAuthor, groupBooksByAuthor } from '@/lib/author-utils';
 import LoanModal from './LoanModal';
@@ -24,12 +25,14 @@ interface BookListProps {
   loanBookFn?: (bookId: string, loanedTo: string) => Promise<void>;
   returnBookFn?: (bookId: string) => Promise<void>;
   libraries?: LibraryTarget[];
+  getReviewsFn?: (bookId: string) => Promise<Review[]>;
 }
 
 
-export default function BookList({ books, onEdit, onDelete, onRefresh, title, basePath, loanBookFn, returnBookFn, libraries }: BookListProps) {
+export default function BookList({ books, onEdit, onDelete, onRefresh, title, basePath, loanBookFn, returnBookFn, libraries, getReviewsFn }: BookListProps) {
   const loanBook = loanBookFn ?? loanBookDefault;
   const returnBook = returnBookFn ?? returnBookDefault;
+  const getReviews = getReviewsFn ?? getReviewsDefault;
   const bookBasePath = basePath ?? '/books';
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
@@ -40,6 +43,7 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
   const [copyDropdownBookId, setCopyDropdownBookId] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [bookReviews, setBookReviews] = useState<Record<string, Review[]>>({});
   const copyDropdownRef = useRef<HTMLDivElement>(null);
 
   // Alphabet A-Z
@@ -57,6 +61,23 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
     };
     loadFavorites();
   }, []);
+
+  // Charger les avis des livres qui en ont
+  useEffect(() => {
+    const booksWithReviews = books.filter(b => b.totalReviews && b.totalReviews > 0);
+    if (booksWithReviews.length === 0) return;
+
+    Promise.all(
+      booksWithReviews.map(async (book) => {
+        const reviews = await getReviews(book.id);
+        return { bookId: book.id, reviews };
+      })
+    ).then((results) => {
+      const map: Record<string, Review[]> = {};
+      results.forEach(({ bookId, reviews }) => { map[bookId] = reviews; });
+      setBookReviews(map);
+    }).catch(console.error);
+  }, [books]);
 
   // Fermer le dropdown de copie si clic à l'extérieur
   useEffect(() => {
@@ -492,6 +513,18 @@ export default function BookList({ books, onEdit, onDelete, onRefresh, title, ba
                                 <span className="text-[#b0a79f] italic text-sm">Pas encore d'avis</span>
                               )}
                             </div>
+
+                            {/* Commentaires */}
+                            {bookReviews[book.id] && bookReviews[book.id].some(r => r.comment) && (
+                              <div className="mt-3 space-y-1.5">
+                                {bookReviews[book.id].filter(r => r.comment).map((r) => (
+                                  <p key={r.id} className="text-sm text-[#7a6a5a] italic border-l-2 border-[#d8cfc4] pl-3">
+                                    &ldquo;{r.comment}&rdquo;
+                                    <span className="not-italic font-semibold text-[#8b7355] ml-1.5">— {r.reviewerName}</span>
+                                  </p>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </Link>

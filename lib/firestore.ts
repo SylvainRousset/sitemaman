@@ -151,15 +151,14 @@ export async function updateBook(
   bookId: string,
   title: string,
   author: string,
-  genre?: string
+  genre?: string,
+  addedBy?: string
 ): Promise<void> {
   try {
     const bookRef = doc(db, 'books', bookId);
-    await updateDoc(bookRef, {
-      title,
-      author,
-      genre: genre ?? null,
-    });
+    const updateData: Record<string, unknown> = { title, author, genre: genre ?? null };
+    if (addedBy !== undefined) updateData.addedBy = addedBy;
+    await updateDoc(bookRef, updateData);
   } catch (error) {
     console.error('Erreur lors de la mise à jour du livre:', error);
     throw new Error('Impossible de mettre à jour le livre');

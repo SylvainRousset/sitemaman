@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { updateBook as updateBookDefault, getAuthors as getAuthorsDefault } from '@/lib/firestore';
+import { updateBook as updateBookDefault, getAuthors as getAuthorsDefault, addReview as addReviewDefault } from '@/lib/firestore';
 import type { Book } from '@/types/book';
+import type { ReviewInput } from '@/types/review';
 import { GENRES } from '@/lib/genres';
+import StarRating from './StarRating';
 import AuthorAutocomplete from './AuthorAutocomplete';
 
 interface EditBookModalProps {
@@ -11,55 +13,47 @@ interface EditBookModalProps {
   book: Book | null;
   onClose: () => void;
   onBookUpdated: () => void;
-  updateBookFn?: (bookId: string, title: string, author: string, genre?: string) => Promise<void>;
+  updateBookFn?: (bookId: string, title: string, author: string, genre?: string, addedBy?: string) => Promise<void>;
   getAuthorsFn?: () => Promise<string[]>;
+  addReviewFn?: (bookId: string, reviewData: ReviewInput) => Promise<string>;
 }
 
-export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, updateBookFn, getAuthorsFn }: EditBookModalProps) {
+const emptyReview: ReviewInput = { reviewerName: '', rating: undefined, comment: '' };
+
+export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, updateBookFn, getAuthorsFn, addReviewFn }: EditBookModalProps) {
   const updateBook = updateBookFn ?? updateBookDefault;
   const getAuthors = getAuthorsFn ?? getAuthorsDefault;
+  const addReview = addReviewFn ?? addReviewDefault;
+
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [genre, setGenre] = useState('');
+  const [addedBy, setAddedBy] = useState('');
+  const [review, setReview] = useState<ReviewInput>(emptyReview);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingAuthors, setExistingAuthors] = useState<string[]>([]);
 
-  // Charger les auteurs existants quand le modal s'ouvre
   useEffect(() => {
     if (isOpen) {
-      const loadAuthors = async () => {
-        try {
-          const authors = await getAuthors();
-          setExistingAuthors(authors);
-        } catch (err) {
-          console.error('Erreur lors du chargement des auteurs:', err);
-        }
-      };
-      loadAuthors();
+      getAuthors().then(setExistingAuthors).catch(console.error);
     }
   }, [isOpen]);
 
-  // Initialiser le formulaire avec les données du livre
   useEffect(() => {
     if (book) {
       setTitle(book.title);
       setAuthor(book.author);
       setGenre(book.genre || '');
+      setAddedBy(book.addedBy || '');
+      setReview(emptyReview);
       setError(null);
     }
   }, [book]);
 
-  // Empêcher le scroll du body quand le modal est ouvert
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
+    document.body.style.overflow = isOpen ? 'hidden' : 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,7 +65,16 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
     setIsSubmitting(true);
 
     try {
-      await updateBook(book.id, title.trim(), author.trim(), genre || undefined);
+      await updateBook(book.id, title.trim(), author.trim(), genre || undefined, addedBy.trim() || undefined);
+
+      const hasReview = review.rating || review.comment?.trim();
+      if (hasReview) {
+        const reviewData: ReviewInput = { reviewerName: (review.reviewerName || addedBy).trim() };
+        if (review.rating) reviewData.rating = review.rating;
+        if (review.comment?.trim()) reviewData.comment = review.comment.trim();
+        await addReview(book.id, reviewData);
+      }
+
       onBookUpdated();
       onClose();
     } catch (err) {
@@ -83,9 +86,7 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
   };
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
+    if (e.target === e.currentTarget) onClose();
   };
 
   if (!isOpen || !book) return null;
@@ -95,18 +96,15 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn"
       onClick={handleOverlayClick}
     >
-      <div className="bg-[#fdfaf5] rounded-2xl shadow-2xl w-full max-w-lg animate-scaleIn border border-[#d8cfc4]">
-        <div className="bg-[#fdfaf5] border-b-2 border-[#d8cfc4] px-8 py-6 flex items-center justify-between rounded-t-2xl">
+      <div className="bg-[#fdfaf5] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scaleIn border border-[#d8cfc4]">
+
+        {/* Header */}
+        <div className="sticky top-0 bg-[#fdfaf5] border-b-2 border-[#d8cfc4] px-8 py-6 flex items-center justify-between">
           <h2 className="font-serif text-3xl font-bold text-[#3e2c1c] flex items-center gap-3">
             <span className="text-[#8b7355]">✏️</span>
             Modifier le livre
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-[#b0a79f] hover:text-[#7a6a5a] transition-colors duration-200"
-            aria-label="Fermer"
-          >
+          <button type="button" onClick={onClose} className="text-[#b0a79f] hover:text-[#7a6a5a] transition-colors duration-200" aria-label="Fermer">
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -120,14 +118,28 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-8">
+
+            {/* Auteur */}
             <div>
-              <label htmlFor="edit-title" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                Titre du livre *
-              </label>
+              <AuthorAutocomplete
+                value={author}
+                onChange={setAuthor}
+                authors={existingAuthors}
+                required
+                label={<>Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez)</span>}</>}
+                labelClassName="block text-base font-semibold text-[#7a6a5a] mb-2"
+                className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
+              />
+            </div>
+
+            {/* Titre */}
+            <div className="space-y-4 pt-2 border-t border-[#d8cfc4]">
+              <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
+                Titre
+              </h3>
               <input
                 type="text"
-                id="edit-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
@@ -136,39 +148,73 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
               />
             </div>
 
-            <div>
-              <AuthorAutocomplete
-                value={author}
-                onChange={setAuthor}
-                authors={existingAuthors}
-                required
-                label={
-                  <>
-                    Auteur * {existingAuthors.length > 0 && <span className="text-sm font-normal text-[#b0a79f]">(Sélectionnez ou tapez)</span>}
-                  </>
-                }
-                labelClassName="block text-base font-semibold text-[#7a6a5a] mb-2"
-                className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
-              />
+            {/* Genre et Ajouté par */}
+            <div className="space-y-5 pt-2 border-t border-[#d8cfc4]">
+              <div>
+                <label className="block text-base font-semibold text-[#7a6a5a] mb-2">Genre</label>
+                <select
+                  value={genre}
+                  onChange={(e) => setGenre(e.target.value)}
+                  className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
+                >
+                  <option value="">-- Choisir un genre --</option>
+                  {GENRES.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-base font-semibold text-[#7a6a5a] mb-2">Ajouté par *</label>
+                <input
+                  type="text"
+                  value={addedBy}
+                  onChange={(e) => {
+                    setAddedBy(e.target.value);
+                    setReview(r => ({ ...r, reviewerName: e.target.value }));
+                  }}
+                  required
+                  className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
+                  placeholder="Votre prénom"
+                />
+              </div>
             </div>
 
-            <div>
-              <label htmlFor="edit-genre" className="block text-base font-semibold text-[#7a6a5a] mb-2">
-                Genre
-              </label>
-              <select
-                id="edit-genre"
-                value={genre}
-                onChange={(e) => setGenre(e.target.value)}
-                className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
-              >
-                <option value="">-- Choisir un genre --</option>
-                {GENRES.map((g) => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
-              </select>
+            {/* Avis (optionnel) */}
+            <div className="space-y-5 pt-6 border-t-2 border-[#d8cfc4]">
+              <h3 className="font-serif text-xl font-bold text-[#3e2c1c] pb-2 border-b border-[#d8cfc4]">
+                Ajouter un avis <span className="text-sm font-normal text-[#b0a79f]">(optionnel)</span>
+              </h3>
+
+              <div>
+                <label className="block text-base font-semibold text-[#7a6a5a] mb-2">Votre nom</label>
+                <input
+                  type="text"
+                  value={review.reviewerName}
+                  onChange={(e) => setReview({ ...review, reviewerName: e.target.value })}
+                  className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
+                  placeholder="Votre prénom"
+                />
+              </div>
+
+              <div>
+                <label className="block text-base font-semibold text-[#7a6a5a] mb-3">Note</label>
+                <StarRating value={review.rating} onChange={(r) => setReview({ ...review, rating: r })} size="lg" />
+              </div>
+
+              <div>
+                <label className="block text-base font-semibold text-[#7a6a5a] mb-2">Commentaire</label>
+                <textarea
+                  value={review.comment || ''}
+                  onChange={(e) => setReview({ ...review, comment: e.target.value })}
+                  rows={5}
+                  className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white resize-none shadow-sm transition-all duration-200"
+                  placeholder="Partagez votre avis sur ce livre..."
+                />
+              </div>
             </div>
 
+            {/* Boutons */}
             <div className="flex gap-4 pt-6">
               <button
                 type="button"
@@ -191,33 +237,10 @@ export default function EditBookModal({ isOpen, book, onClose, onBookUpdated, up
       </div>
 
       <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes scaleIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.2s ease-out;
-        }
-
-        .animate-scaleIn {
-          animation: scaleIn 0.2s ease-out;
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
+        .animate-scaleIn { animation: scaleIn 0.2s ease-out; }
       `}</style>
     </div>
   );

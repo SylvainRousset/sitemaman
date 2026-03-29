@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { addBook as addBookDefault, getAuthors as getAuthorsDefault } from '@/lib/firestore';
-import type { BookInput } from '@/types/book';
+import { addBook as addBookDefault, getAuthors as getAuthorsDefault, getBooks as getBooksDefault } from '@/lib/firestore';
+import type { Book, BookInput } from '@/types/book';
 import type { ReviewInput } from '@/types/review';
 import { GENRES } from '@/lib/genres';
+import { removeAccents } from '@/lib/author-utils';
 import StarRating from './StarRating';
 import AuthorAutocomplete from './AuthorAutocomplete';
 
@@ -14,13 +15,15 @@ interface AddBookModalProps {
   onBookAdded: () => void;
   addBookFn?: (bookData: BookInput, firstReview?: ReviewInput) => Promise<string>;
   getAuthorsFn?: () => Promise<string[]>;
+  getBooksFn?: () => Promise<Book[]>;
 }
 
 const emptyReview: ReviewInput = { reviewerName: '', rating: undefined, comment: '' };
 
-export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, getAuthorsFn }: AddBookModalProps) {
+export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, getAuthorsFn, getBooksFn }: AddBookModalProps) {
   const addBook = addBookFn ?? addBookDefault;
   const getAuthors = getAuthorsFn ?? getAuthorsDefault;
+  const getBooks = getBooksFn ?? getBooksDefault;
 
   const [titles, setTitles] = useState<string[]>(['']);
   const [author, setAuthor] = useState('');
@@ -32,12 +35,14 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
   const [submitProgress, setSubmitProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [existingAuthors, setExistingAuthors] = useState<string[]>([]);
+  const [existingBooks, setExistingBooks] = useState<Book[]>([]);
 
   const isSingleTitle = titles.length === 1;
 
   useEffect(() => {
     if (isOpen) {
       getAuthors().then(setExistingAuthors).catch(console.error);
+      getBooks().then(setExistingBooks).catch(console.error);
     }
   }, [isOpen]);
 
@@ -57,6 +62,12 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
     document.body.style.overflow = isOpen ? 'hidden' : 'unset';
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
+
+  const findDuplicate = (title: string): Book | undefined => {
+    if (!title.trim()) return undefined;
+    const normalized = removeAccents(title.trim().toLowerCase());
+    return existingBooks.find(b => removeAccents(b.title.toLowerCase()) === normalized);
+  };
 
   const handleAddTitle = () => setTitles([...titles, '']);
 
@@ -170,36 +181,47 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded, addBookFn, 
               </h3>
 
               <div className="space-y-3">
-                {titles.map((title, index) => (
-                  <div key={index} className="flex gap-2 items-center">
-                    <div className="flex-1 flex items-center gap-2">
-                      {titles.length > 1 && (
-                        <span className="text-sm font-bold text-[#b0a79f] w-5 text-right shrink-0">{index + 1}.</span>
+                {titles.map((title, index) => {
+                  const duplicate = findDuplicate(title);
+                  return (
+                    <div key={index}>
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-1 flex items-center gap-2">
+                          {titles.length > 1 && (
+                            <span className="text-sm font-bold text-[#b0a79f] w-5 text-right shrink-0">{index + 1}.</span>
+                          )}
+                          <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => handleTitleChange(index, e.target.value)}
+                            required={index === 0}
+                            className={`w-full px-4 py-3 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent bg-white shadow-sm transition-all duration-200 ${duplicate ? 'border-amber-400 focus:ring-amber-400' : 'border-[#d8cfc4] focus:ring-[#6b4f3a]'}`}
+                            placeholder={index === 0 ? 'Ex: Le Petit Prince' : `Titre ${index + 1}...`}
+                            autoFocus={index === titles.length - 1 && index > 0}
+                          />
+                        </div>
+                        {titles.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTitle(index)}
+                            className="p-2 text-[#b0a79f] hover:text-[#c75450] hover:bg-red-50 rounded-lg transition-all duration-200"
+                            title="Supprimer ce titre"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      {duplicate && (
+                        <p className="mt-1.5 ml-1 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
+                          <span className="shrink-0 mt-0.5">⚠️</span>
+                          <span>Ce livre existe déjà : <span className="font-semibold">&laquo;{duplicate.title}&raquo;</span> de <span className="font-semibold">{duplicate.author}</span>, ajouté par {duplicate.addedBy}.</span>
+                        </p>
                       )}
-                      <input
-                        type="text"
-                        value={title}
-                        onChange={(e) => handleTitleChange(index, e.target.value)}
-                        required={index === 0}
-                        className="w-full px-4 py-3 text-lg border border-[#d8cfc4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6b4f3a] focus:border-transparent bg-white shadow-sm transition-all duration-200"
-                        placeholder={index === 0 ? 'Ex: Le Petit Prince' : `Titre ${index + 1}...`}
-                        autoFocus={index === titles.length - 1 && index > 0}
-                      />
                     </div>
-                    {titles.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTitle(index)}
-                        className="p-2 text-[#b0a79f] hover:text-[#c75450] hover:bg-red-50 rounded-lg transition-all duration-200"
-                        title="Supprimer ce titre"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <button

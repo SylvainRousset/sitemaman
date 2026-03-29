@@ -9,6 +9,8 @@ import {
   addBook,
   updateBook,
   getAuthors,
+  addReview,
+  getReviews,
   loanBook,
   returnBook,
 } from '@/lib/firestore-tif';
@@ -85,6 +87,7 @@ export default function TifLibrary() {
         onBookAdded={fetchBooks}
         addBookFn={addBook}
         getAuthorsFn={getAuthors}
+        getBooksFn={getBooks}
       />
 
       <EditBookModal
@@ -97,6 +100,7 @@ export default function TifLibrary() {
         onBookUpdated={fetchBooks}
         updateBookFn={updateBook}
         getAuthorsFn={getAuthors}
+        addReviewFn={addReview}
       />
 
       {error && (
@@ -120,6 +124,7 @@ export default function TifLibrary() {
           basePath="/tif/books"
           loanBookFn={loanBook}
           returnBookFn={returnBook}
+          getReviewsFn={getReviews}
           libraries={[
             { name: 'Bibliothèque Principale', addBookFn: addBookMain },
             { name: 'Bibliothèque de Maman', addBookFn: addBookMaman },

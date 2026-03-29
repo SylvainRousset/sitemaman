@@ -9,9 +9,12 @@ import {
   addBook,
   updateBook,
   getAuthors,
+  addReview,
+  getReviews,
   loanBook,
   returnBook,
 } from '@/lib/firestore-maman';
+
 import { addBook as addBookMain } from '@/lib/firestore';
 import { addBook as addBookTif } from '@/lib/firestore-tif';
 import type { Book } from '@/types/book';
@@ -85,6 +88,7 @@ export default function MamanLibrary() {
         onBookAdded={fetchBooks}
         addBookFn={addBook}
         getAuthorsFn={getAuthors}
+        getBooksFn={getBooks}
       />
 
       <EditBookModal
@@ -97,6 +101,7 @@ export default function MamanLibrary() {
         onBookUpdated={fetchBooks}
         updateBookFn={updateBook}
         getAuthorsFn={getAuthors}
+        addReviewFn={addReview}
       />
 
       {error && (
@@ -120,6 +125,7 @@ export default function MamanLibrary() {
           basePath="/maman/books"
           loanBookFn={loanBook}
           returnBookFn={returnBook}
+          getReviewsFn={getReviews}
           libraries={[
             { name: 'Bibliothèque Principale', addBookFn: addBookMain },
             { name: 'Bibliothèque de Tif', addBookFn: addBookTif },
